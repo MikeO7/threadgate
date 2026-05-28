@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
@@ -89,7 +89,7 @@ func TestHandleBackupExportMethodNotAllowed(t *testing.T) {
 
 func TestHandleBackupFilesEmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFiles(rr, req)
@@ -109,7 +109,7 @@ func TestHandleBackupFileRestoreInvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -144,7 +144,7 @@ func TestRunMockDatasetCommand(t *testing.T) {
 
 func TestHandleBackupSaveExportError(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("export failed")
 	}), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/save", nil)
@@ -160,7 +160,7 @@ func TestHandleBackupSaveWriteFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "backups"), []byte("not-a-dir"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)
@@ -182,7 +182,7 @@ func TestHandleBackupFilesFiltersAndErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFiles(rr, req)
@@ -210,7 +210,7 @@ func TestHandleBackupFilesFiltersAndErrors(t *testing.T) {
 
 func TestHandleBackupFileGetNotFound(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files/missing.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileGet(rr, req, "missing.json")
@@ -221,7 +221,7 @@ func TestHandleBackupFileGetNotFound(t *testing.T) {
 
 func TestHandleBackupFileGetInvalidName(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files/", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileGet(rr, req, "..")
@@ -242,7 +242,7 @@ func TestHandleBackupFileRestoreImportError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServer(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("import failed")
 	}), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/files/"+name, nil)
@@ -265,7 +265,7 @@ func TestHandleBackupFileRestoreDefaultsVersion(t *testing.T) {
 	}
 
 	called := false
-	server := NewServer(8081, NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
 		if strings.Join(args, " ") == "dataset set active "+activeDatasetHex {
 			called = true
 		}
@@ -339,7 +339,7 @@ func TestParseDatasetHexQuotedFallback(t *testing.T) {
 func TestHandleHealthWriteError(t *testing.T) {
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("", "v1", "")
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	server.handleHealth(&failResponseWriter{}, req)
 }
@@ -356,7 +356,7 @@ func TestSetActiveDatasetEmptyBody(t *testing.T) {
 
 func TestHandleBackupFileRestoreNotFound(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/files/missing.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, "missing.json")
@@ -367,7 +367,7 @@ func TestHandleBackupFileRestoreNotFound(t *testing.T) {
 
 func TestHandleBackupFileInvalidName(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files/..", nil)
 	req.URL.Path = "/api/backup/files/.."
 	rr := httptest.NewRecorder()
@@ -399,7 +399,7 @@ func TestSetPendingDatasetEmptyBody(t *testing.T) {
 }
 
 func TestHandleDashboardWriteError(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	server.handleDashboard(&failResponseWriter{}, req)
 }

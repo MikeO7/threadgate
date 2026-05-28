@@ -3,15 +3,16 @@ package radio
 import (
 	"testing"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/config"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
 func TestBindingMockRefresh(t *testing.T) {
 	tracker := runtime.NewTracker()
-	cfg := Config{
+	cfg := &config.Config{
 		AutoDiscover: true,
 		Baudrate:     460800,
-		MockMode:     true,
+		Runtime:      config.RuntimeModeMock,
 	}
 	b, err := NewBinding(cfg, tracker)
 	if err != nil {

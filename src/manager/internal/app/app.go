@@ -13,9 +13,8 @@ import (
 
 	"github.com/MikeO7/threadgate/src/manager/internal/api"
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
-	"github.com/MikeO7/threadgate/src/manager/internal/radio"
-	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 	"github.com/MikeO7/threadgate/src/manager/internal/supervisor"
 )
 
@@ -54,24 +53,23 @@ func (a *App) Run() error {
 		log.Printf("[App] WARNING: Port %d was already in use! Auto-detected free port %d instead for the dashboard/API.\n", originalPort, a.cfg.Port)
 	}
 
-	statusTracker := runtime.NewTracker()
-	statusTracker.SetHostAudit(hostAudit)
-
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(a.cfg), statusTracker)
+	runtimeEnv, err := env.Bootstrap(a.cfg)
 	if err != nil {
-		return fmt.Errorf("configuration error: %w", err)
+		return fmt.Errorf("bootstrap failed: %w", err)
 	}
-	log.Printf("[App] Using Thread Radio URL: %s\n", radioBinding.CurrentSpinelURL())
+	runtimeEnv.Status.SetHostAudit(hostAudit)
+
+	log.Printf("[App] Using Thread Radio URL: %s\n", runtimeEnv.Radio.CurrentSpinelURL())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	super := supervisor.New(a.cfg, radioBinding, statusTracker, supervisor.ExecLauncher{})
+	super := supervisor.New(runtimeEnv, supervisor.ExecLauncher{})
 	if err := super.Start(ctx); err != nil {
 		return fmt.Errorf("supervisor boot failed: %w", err)
 	}
 
-	server, apiErrChan := startAPIServer(a.cfg, statusTracker)
+	server, apiErrChan := startAPIServer(runtimeEnv)
 	waitForShutdownHook(server, super, cancel, apiErrChan, nil)
 
 	return nil
@@ -88,10 +86,8 @@ func findAvailablePort(startPort int) int {
 	return startPort
 }
 
-func startAPIServer(cfg *config.Config, statusTracker *runtime.Tracker) (*api.Server, <-chan error) {
-	otctl := api.NewOtCtl(cfg.Runtime.IsMock())
-	threads := api.NewThreadService(otctl, api.CollectBestEffort)
-	server := api.NewServer(cfg.Port, threads, cfg.Runtime.IsMock(), cfg.StateDir, statusTracker)
+func startAPIServer(runtimeEnv *env.Env) (*api.Server, <-chan error) {
+	server := api.NewServer(runtimeEnv, runtimeEnv.Config.Port, runtimeEnv.Config.StateDir)
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- server.Start()

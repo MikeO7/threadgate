@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 // DashboardView adds presentation fields for SSR dashboard rendering.

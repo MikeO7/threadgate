@@ -127,7 +127,7 @@ func TestHandleBackupImportInvalid(t *testing.T) {
 
 func TestHandleBackupSave(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -153,7 +153,7 @@ func TestHandleBackupSave(t *testing.T) {
 
 func TestHandleBackupFilesList(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -186,7 +186,7 @@ func TestHandleBackupFilesList(t *testing.T) {
 
 func TestHandleBackupFileRestore(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()

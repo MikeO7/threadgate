@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 func TestE2EMockMode(t *testing.T) {

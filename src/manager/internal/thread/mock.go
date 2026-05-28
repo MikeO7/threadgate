@@ -1,4 +1,4 @@
-package api
+package thread
 
 import (
 	"context"
@@ -10,15 +10,20 @@ import (
 )
 
 const (
-	constDone       = "Done"
-	constLeader     = "leader"
-	mockNodeCount   = 30
-	mockDirectCount = 8
+	mockDone           = "Done"
+	mockLeader         = "leader"
+	MockRouterCount    = 32 // Thread max active routers per partition
+	MockDirectCount    = 8
+	MockEndDeviceCount = 12
+	MockMeshNodeCount  = MockRouterCount + MockEndDeviceCount
+	MockNetworkName    = "ThreadGate-Mock"
+	MockActiveDataset  = "0e080000000000010000"
+	MockPendingDataset = "0e080000000000019999"
 )
 
 func mockRouteParent(id int) (nextHopID int, pathCost int) {
 	switch {
-	case id <= mockDirectCount:
+	case id <= MockDirectCount:
 		return id, 0
 	case id <= 16:
 		return id - 8, 1
@@ -50,17 +55,18 @@ func buildMockNeighborTable(count int) string {
 
 func buildMockChildTable() string {
 	var b strings.Builder
-	for i := 27; i <= mockNodeCount; i++ {
-		if i > 27 {
+	for i := 0; i < MockEndDeviceCount; i++ {
+		if i > 0 {
 			b.WriteByte('\n')
 		}
-		extAddr := fmt.Sprintf("%016x", i)
-		rloc16 := fmt.Sprintf("0xc%03x", i)
+		id := 100 + i
+		extAddr := fmt.Sprintf("e00000000000%04x", i)
+		rloc16 := fmt.Sprintf("0xc1%02x", i+0x40)
 		lqi := (i%3) + 1
 		fmt.Fprintf(
 			&b,
 			"ID:%d Rloc16:%s ExtAddr:%s LinkQuality:%d",
-			i, rloc16, extAddr, lqi,
+			id, rloc16, extAddr, lqi,
 		)
 	}
 	return b.String()
@@ -105,34 +111,34 @@ type mockStateData struct {
 
 func defaultMockState() mockStateData {
 	return mockStateData{
-		state:         constLeader,
+		state:         mockLeader,
 		rloc16:        "0xc000",
 		extaddr:       "1122334455667788",
-		networkname:   mockNetworkName,
+		networkname:   MockNetworkName,
 		panid:         "0x1234",
 		channel:       "15",
-		activeHex:     activeDatasetHex,
-		pendingHex:    pendingDatasetHex,
+		activeHex:     MockActiveDataset,
+		pendingHex:    MockPendingDataset,
 		counters:      "MacTxUnique=100\nMacRxUnique=200\nTxRetry=5",
 		ipaddr:        "fd11:22::1\nfe80::1",
-		neighborTable: buildMockNeighborTable(mockDirectCount),
+		neighborTable: buildMockNeighborTable(MockDirectCount),
 		childTable:    buildMockChildTable(),
-		routerTable:   buildMockRouterTable(mockNodeCount),
+		routerTable:   buildMockRouterTable(MockRouterCount),
 	}
 }
 
-// MockOtCtl simulates ot-ctl with instance-scoped state (safe for parallel tests).
-type MockOtCtl struct {
+// Mock simulates ot-ctl with instance-scoped state (safe for parallel tests).
+type Mock struct {
 	mu    sync.RWMutex
 	state mockStateData
 }
 
-// NewMockOtCtl returns a mock ot-ctl adapter with default simulated Thread data.
-func NewMockOtCtl() *MockOtCtl {
-	return &MockOtCtl{state: defaultMockState()}
+// NewMock returns a mock ot-ctl adapter with default simulated Thread data.
+func NewMock() *Mock {
+	return &Mock{state: defaultMockState()}
 }
 
-func (m *MockOtCtl) Run(_ context.Context, args ...string) (string, error) {
+func (m *Mock) Run(_ context.Context, args ...string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return runMockCommand(&m.state, otctl.Command{Args: args}.Key())
@@ -174,14 +180,14 @@ func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {
 	switch {
 	case strings.HasPrefix(cmd, "dataset set active "):
 		state.activeHex = strings.TrimPrefix(cmd, "dataset set active ")
-		return constDone, nil
+		return mockDone, nil
 	case cmd == otctl.DatasetCommitActive.Key():
-		return constDone, nil
+		return mockDone, nil
 	case strings.HasPrefix(cmd, "dataset set pending "):
 		state.pendingHex = strings.TrimPrefix(cmd, "dataset set pending ")
-		return constDone, nil
+		return mockDone, nil
 	case cmd == otctl.DatasetCommitPending.Key():
-		return constDone, nil
+		return mockDone, nil
 	}
 
 	return "", fmt.Errorf("mock ot-ctl: unknown command: %s", cmd)

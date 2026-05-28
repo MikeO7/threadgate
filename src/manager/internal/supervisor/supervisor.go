@@ -1,4 +1,3 @@
-// Package supervisor implements daemon monitoring and lifecycle management for background services.
 package supervisor
 
 import (
@@ -8,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/radio"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
@@ -18,24 +17,25 @@ var mockAgentSleep = 10 * time.Minute
 
 // Supervisor monitors and controls DBus, Avahi, and the C++ otbr-agent process.
 type Supervisor struct {
-	cfg      *config.Config
-	radio    radio.Binder
+	env      *env.Env
+	radio    *radio.Binding
 	status   *runtime.Tracker
 	launcher ProcessLauncher
+	daemons  processRegistry
 
 	cancelFunc context.CancelFunc
 	ctx        context.Context
 }
 
 // New creates a new supervisor instance.
-func New(cfg *config.Config, radio radio.Binder, status *runtime.Tracker, launcher ProcessLauncher) *Supervisor {
+func New(e *env.Env, launcher ProcessLauncher) *Supervisor {
 	if launcher == nil {
 		launcher = ExecLauncher{}
 	}
 	return &Supervisor{
-		cfg:      cfg,
-		radio:    radio,
-		status:   status,
+		env:      e,
+		radio:    e.Radio,
+		status:   e.Status,
 		launcher: launcher,
 	}
 }
@@ -46,7 +46,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	log.Println("[Supervisor] Bootstrapping system daemons...")
 
-	if s.cfg.Runtime.IsMock() {
+	if s.env.IsMock() {
 		log.Println("[Supervisor] Mock mode active: starting simulated system daemons...")
 		s.setAgentStatus("mock", "")
 		go s.runMockAgentLoop()
@@ -69,9 +69,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	if err := dbusCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start dbus-daemon: %w", err)
 	}
+	s.daemons.track(dbusCmd)
 	log.Println("[Supervisor] dbus-daemon launched successfully.")
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(daemonBootDelay)
 
 	s.startAvahi()
 
@@ -113,7 +114,7 @@ func (s *Supervisor) Stop() {
 	if s.cancelFunc != nil {
 		s.cancelFunc()
 	}
-	time.Sleep(2 * time.Second)
+	s.daemons.stopAll(daemonStopDelay)
 }
 
 func (s *Supervisor) startAvahi() {
@@ -126,6 +127,7 @@ func (s *Supervisor) startAvahi() {
 		log.Printf("[Supervisor] Warning: avahi-daemon could not be started: %v (mDNS features may not function)\n", err)
 		return
 	}
+	s.daemons.track(avCmd)
 	log.Println("[Supervisor] avahi-daemon launched successfully.")
 }
 
@@ -141,8 +143,9 @@ func (s *Supervisor) runAgentLoop() {
 }
 
 func (s *Supervisor) runAgentOnce() {
+	cfg := s.env.Config
 	targetURL := s.radio.CurrentSpinelURL()
-	if s.cfg.AutoDiscover {
+	if cfg.AutoDiscover {
 		if err := s.radio.Refresh(); err != nil {
 			log.Printf("[Supervisor] Re-discovery failed: %v. Falling back to last known URL: %s\n", err, targetURL)
 		} else {
@@ -154,8 +157,8 @@ func (s *Supervisor) runAgentOnce() {
 	log.Printf("[Supervisor] Launching otbr-agent with Radio: %s\n", targetURL)
 
 	args := []string{"-I", "wpan0"}
-	if s.cfg.BackboneIF != "" {
-		args = append(args, "-B", s.cfg.BackboneIF)
+	if cfg.BackboneIF != "" {
+		args = append(args, "-B", cfg.BackboneIF)
 	} else {
 		args = append(args, "-B")
 	}
@@ -175,6 +178,7 @@ func (s *Supervisor) runAgentOnce() {
 		return
 	}
 
+	s.daemons.track(agentCmd)
 	log.Println("[Supervisor] otbr-agent process started successfully.")
 
 	err := agentCmd.Wait()

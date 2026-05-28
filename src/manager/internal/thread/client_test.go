@@ -1,4 +1,4 @@
-package api
+package thread
 
 import (
 	"context"
@@ -10,11 +10,13 @@ import (
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
-func TestThreadServiceBuildSnapshot(t *testing.T) {
-	otctlRunner := FuncOtCtl(snapshotFixtureOtCtl(t))
-	svc := NewThreadService(otctlRunner, CollectBestEffort)
+const testGatewayKey = "c000"
 
-	snap, err := svc.BuildSnapshot(context.Background())
+func TestClientBuildSnapshot(t *testing.T) {
+	runner := FuncRunner(snapshotFixtureOtCtl(t))
+	client := NewClient(runner, PolicyBestEffort)
+
+	snap, err := client.BuildSnapshot(context.Background())
 	if err != nil {
 		t.Fatalf("BuildSnapshot failed: %v", err)
 	}
@@ -32,17 +34,17 @@ func TestThreadServiceBuildSnapshot(t *testing.T) {
 	}
 }
 
-func TestThreadServiceBuildSnapshotPartialFailure(t *testing.T) {
-	otctlRunner := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+func TestClientBuildSnapshotPartialFailure(t *testing.T) {
+	runner := FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		key := otctl.Command{Args: args}.Key()
 		if key == otctl.State.Key() {
 			return "", context.Canceled
 		}
 		return "ok", nil
 	})
-	svc := NewThreadService(otctlRunner, CollectBestEffort)
+	client := NewClient(runner, PolicyBestEffort)
 
-	snap, err := svc.BuildSnapshot(context.Background())
+	snap, err := client.BuildSnapshot(context.Background())
 	if err == nil {
 		t.Fatal("expected best-effort partial snapshot error")
 	}
@@ -51,16 +53,16 @@ func TestThreadServiceBuildSnapshotPartialFailure(t *testing.T) {
 	}
 }
 
-func TestThreadServiceBuildSnapshotStrictMode(t *testing.T) {
-	otctlRunner := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+func TestClientBuildSnapshotStrictMode(t *testing.T) {
+	runner := FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if len(args) > 0 && args[0] == otctl.State.Args[0] {
 			return "", context.Canceled
 		}
 		return "ok", nil
 	})
-	svc := NewThreadService(otctlRunner, CollectStrict)
+	client := NewClient(runner, PolicyStrict)
 
-	_, err := svc.BuildSnapshot(context.Background())
+	_, err := client.BuildSnapshot(context.Background())
 	if err == nil {
 		t.Fatal("expected strict collection to fail on first error")
 	}
@@ -69,18 +71,18 @@ func TestThreadServiceBuildSnapshotStrictMode(t *testing.T) {
 func snapshotFixtureOtCtl(t *testing.T) func(context.Context, ...string) (string, error) {
 	t.Helper()
 	fixtures := map[string]string{
-		otctl.State.Key():           "leader",
-		otctl.NetworkName.Key():     testNetworkName,
-		otctl.ExtAddr.Key():         "1122334455667788",
-		otctl.PanID.Key():           "0x1234",
-		otctl.Channel.Key():         "15",
-		otctl.Rloc16.Key():          "0xc000",
-		otctl.DatasetActive.Key():   activeDatasetHex,
-		otctl.IPAddr.Key():          "fd00::1",
-		otctl.Counters.Key():        "MacTxUnique=1",
-		otctl.NeighborTable.Key():   readFixture(t, "neighbor_table.txt"),
-		otctl.ChildTable.Key():      readFixture(t, "child_table.txt"),
-		otctl.RouterTable.Key():     readFixture(t, "router_table.txt"),
+		otctl.State.Key():         "leader",
+		otctl.NetworkName.Key():   "Thread-Test",
+		otctl.ExtAddr.Key():       "1122334455667788",
+		otctl.PanID.Key():         "0x1234",
+		otctl.Channel.Key():       "15",
+		otctl.Rloc16.Key():        "0xc000",
+		otctl.DatasetActive.Key(): MockActiveDataset,
+		otctl.IPAddr.Key():        "fd00::1",
+		otctl.Counters.Key():      "MacTxUnique=1",
+		otctl.NeighborTable.Key(): readFixture(t, "neighbor_table.txt"),
+		otctl.ChildTable.Key():    readFixture(t, "child_table.txt"),
+		otctl.RouterTable.Key():   readFixture(t, "router_table.txt"),
 	}
 
 	return func(_ context.Context, args ...string) (string, error) {

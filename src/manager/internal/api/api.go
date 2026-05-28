@@ -10,34 +10,40 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 // Server handles REST API and diagnostic web requests.
 type Server struct {
 	port           int
-	mockMode       bool
-	threads        *ThreadService
+	env            *env.Env
+	threads        *thread.Client
 	backup         *BackupStore
 	srv            *http.Server
 	statusReporter runtime.Reporter
 }
 
-// NewServer creates a server wired to the given ThreadService.
-func NewServer(port int, threads *ThreadService, mockMode bool, stateDir string, statusReporter runtime.Reporter) *Server {
+// NewServer creates a server wired to the composition root Env.
+func NewServer(e *env.Env, port int, stateDir string) *Server {
+	var reporter runtime.Reporter
+	if e.Status != nil {
+		reporter = e.Status
+	}
 	return &Server{
 		port:           port,
-		threads:        threads,
-		mockMode:       mockMode,
-		backup:         NewBackupStore(threads, stateDir),
-		statusReporter: statusReporter,
+		env:            e,
+		threads:        e.Thread,
+		backup:         NewBackupStore(e.Thread, stateDir),
+		statusReporter: reporter,
 	}
 }
 
 // NewServerWithOtCtl is a convenience constructor for tests and wiring.
 func NewServerWithOtCtl(port int, otctl OtCtl, mockMode bool) *Server {
-	return NewServer(port, NewThreadService(otctl, CollectBestEffort), mockMode, "", nil)
+	return NewServer(testEnv(otctl, mockMode), port, "")
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
@@ -237,7 +243,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[API Server] Dashboard snapshot partial: %v\n", err)
 	}
 
-	view := NewDashboardView(snap, s.port, s.mockMode)
+	view := NewDashboardView(snap, s.port, s.env.IsMock())
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {
 		log.Printf("[API Server] Failed to execute template: %v\n", err)
@@ -245,6 +251,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // RunSnapshot is a test helper that builds a snapshot with a timeout context.
-func RunSnapshot(ctx context.Context, threads *ThreadService) (topology.Snapshot, error) {
+func RunSnapshot(ctx context.Context, threads *thread.Client) (topology.Snapshot, error) {
 	return threads.BuildSnapshot(ctx)
 }

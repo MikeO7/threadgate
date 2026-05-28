@@ -15,6 +15,7 @@ import (
 
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
 func TestServerStartShutdown(t *testing.T) {
@@ -25,7 +26,7 @@ func TestServerStartShutdown(t *testing.T) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	_ = ln.Close()
 
-	server := NewServer(port, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(port, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	errCh := make(chan error, 1)
 	go func() { errCh <- server.Start() }()
 
@@ -56,14 +57,14 @@ func TestServerStartShutdown(t *testing.T) {
 }
 
 func TestShutdownWithoutStart(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	if err := server.Shutdown(context.Background()); err != nil {
 		t.Fatalf("expected nil shutdown, got %v", err)
 	}
 }
 
 func TestHandleHealthWithoutReporter(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rr := httptest.NewRecorder()
 	server.handleHealth(rr, req)
@@ -78,7 +79,7 @@ func TestHandleHealthWithoutReporter(t *testing.T) {
 }
 
 func TestHandleDashboardNotFound(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequest(http.MethodGet, "/missing", nil)
 	rr := httptest.NewRecorder()
 	server.handleDashboard(rr, req)
@@ -88,10 +89,10 @@ func TestHandleDashboardNotFound(t *testing.T) {
 }
 
 func TestNewOtCtlModes(t *testing.T) {
-	if _, ok := NewOtCtl(true).(*MockOtCtl); !ok {
+	if _, ok := NewOtCtl(true).(*thread.Mock); !ok {
 		t.Fatal("expected mock otctl")
 	}
-	if _, ok := NewOtCtl(false).(ExecOtCtl); !ok {
+	if _, ok := NewOtCtl(false).(thread.ExecRunner); !ok {
 		t.Fatal("expected exec otctl")
 	}
 }
@@ -106,9 +107,9 @@ func TestRunOtCtlWithContext(t *testing.T) {
 	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath)
 
-	out, err := runOtCtlWithContext(context.Background(), otctl.State.Args[0])
+	out, err := thread.ExecRunner{}.Run(context.Background(), otctl.State.Args[0])
 	if err != nil {
-		t.Fatalf("runOtCtlWithContext failed: %v", err)
+		t.Fatalf("ExecRunner.Run failed: %v", err)
 	}
 	if out != "leader" {
 		t.Errorf("expected leader, got %q", out)
@@ -125,9 +126,9 @@ func TestExecOtCtlRun(t *testing.T) {
 	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath)
 
-	out, err := ExecOtCtl{}.Run(context.Background(), otctl.State.Args[0])
+	out, err := thread.ExecRunner{}.Run(context.Background(), otctl.State.Args[0])
 	if err != nil {
-		t.Fatalf("ExecOtCtl.Run failed: %v", err)
+		t.Fatalf("ExecRunner.Run failed: %v", err)
 	}
 	if out != "" {
 		t.Errorf("expected trimmed Done output, got %q", out)
@@ -136,7 +137,7 @@ func TestExecOtCtlRun(t *testing.T) {
 
 func TestHandleBackupFileGet(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequest(http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -160,7 +161,7 @@ func TestHandleBackupFileGet(t *testing.T) {
 }
 
 func TestHandleBackupErrors(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/backup/files", nil)
 	rr := httptest.NewRecorder()
@@ -170,7 +171,7 @@ func TestHandleBackupErrors(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	serverWithDir := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	serverWithDir := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	reqBad := httptest.NewRequest(http.MethodGet, "/api/backup/files/not-a-json-file", nil)
 	rrBad := httptest.NewRecorder()
 	serverWithDir.handleBackup(rrBad, reqBad)
@@ -194,7 +195,7 @@ func TestHandleNodeInfoError(t *testing.T) {
 func TestHandleHealthWithReporter(t *testing.T) {
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("", "v1", "")
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rr := httptest.NewRecorder()
 	server.handleHealth(rr, req)

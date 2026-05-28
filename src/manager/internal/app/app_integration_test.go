@@ -12,6 +12,7 @@ import (
 
 	"github.com/MikeO7/threadgate/src/manager/internal/api"
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/radio"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 	"github.com/MikeO7/threadgate/src/manager/internal/supervisor"
@@ -30,7 +31,7 @@ func TestRadioBindingHardwareProbeError(t *testing.T) {
 		RadioURL: "spinel+hdlc+uart:///dev/ttyDOESNOTEXIST999?uart-baudrate=115200",
 	}
 	tracker := runtime.NewTracker()
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), tracker)
+	radioBinding, err := radio.NewBinding(cfg, tracker)
 	if err != nil {
 		t.Fatalf("NewBinding failed: %v", err)
 	}
@@ -49,7 +50,7 @@ func TestRadioBindingExplicitURL(t *testing.T) {
 		FlowControl:         true,
 		Runtime:             config.RuntimeModeHardware,
 	}
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), runtime.NewTracker())
+	radioBinding, err := radio.NewBinding(cfg, runtime.NewTracker())
 	if err != nil {
 		t.Fatalf("NewBinding failed: %v", err)
 	}
@@ -64,7 +65,7 @@ func TestRadioBindingConfigError(t *testing.T) {
 		AutoDiscover: false,
 		Runtime:      config.RuntimeModeHardware,
 	}
-	_, err := radio.NewBinding(radio.ConfigFrom(cfg), runtime.NewTracker())
+	_, err := radio.NewBinding(cfg, runtime.NewTracker())
 	if err == nil {
 		t.Fatal("expected configuration error")
 	}
@@ -184,12 +185,23 @@ func testSupervisor(t *testing.T, cfg *config.Config) *supervisor.Supervisor {
 	if !cfg.AutoDiscover && cfg.RadioURL == "" {
 		cfg.AutoDiscover = true
 	}
-	tracker := runtime.NewTracker()
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), tracker)
+	runtimeEnv, err := env.Bootstrap(cfg)
 	if err != nil {
-		t.Fatalf("NewBinding: %v", err)
+		t.Fatalf("Bootstrap: %v", err)
 	}
-	return supervisor.New(cfg, radioBinding, tracker, supervisor.ExecLauncher{})
+	return supervisor.New(runtimeEnv, supervisor.ExecLauncher{})
+}
+
+func bootstrapAPIServer(t *testing.T, cfg *config.Config) (*api.Server, <-chan error) {
+	t.Helper()
+	if !cfg.AutoDiscover && cfg.RadioURL == "" {
+		cfg.AutoDiscover = true
+	}
+	runtimeEnv, err := env.Bootstrap(cfg)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	return startAPIServer(runtimeEnv)
 }
 
 func TestWaitForShutdownSignal(t *testing.T) {
@@ -206,7 +218,7 @@ func TestWaitForShutdownSignal(t *testing.T) {
 		StateDir: t.TempDir(),
 	}
 
-	server, _ := startAPIServer(cfg, nil)
+	server, _ := bootstrapAPIServer(t, cfg)
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		conn, dialErr := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port))
@@ -237,7 +249,7 @@ func TestWaitForShutdownServerClosed(t *testing.T) {
 	_ = ln.Close()
 
 	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
-	server, _ := startAPIServer(cfg, nil)
+	server, _ := bootstrapAPIServer(t, cfg)
 	time.Sleep(50 * time.Millisecond)
 
 	super := testSupervisor(t, cfg)
@@ -260,7 +272,7 @@ func TestWaitForShutdownAPIFailure(t *testing.T) {
 	_ = ln.Close()
 
 	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
-	server, _ := startAPIServer(cfg, nil)
+	server, _ := bootstrapAPIServer(t, cfg)
 	time.Sleep(50 * time.Millisecond)
 
 	super := testSupervisor(t, cfg)

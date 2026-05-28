@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
 func TestHandleNodeInfoWriteError(t *testing.T) {
@@ -70,7 +71,7 @@ func TestGetPendingDatasetError(t *testing.T) {
 }
 
 func TestHandleBackupSaveNoStateDir(t *testing.T) {
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)
@@ -81,7 +82,7 @@ func TestHandleBackupSaveNoStateDir(t *testing.T) {
 
 func TestHandleBackupFileMethodNotAllowed(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodDelete, "/api/backup/files/test.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFile(rr, req)
@@ -101,7 +102,7 @@ func TestHandleBackupFileRestoreValidationFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -208,10 +209,10 @@ func TestThreadServiceDiagnosticsPartialError(t *testing.T) {
 }
 
 func TestSplitLines(t *testing.T) {
-	if splitLines("") != nil {
+	if thread.SplitLines("") != nil {
 		t.Fatal("expected nil for empty string")
 	}
-	lines := splitLines("a\nb")
+	lines := thread.SplitLines("a\nb")
 	if len(lines) != 2 || lines[0] != "a" {
 		t.Fatalf("unexpected lines: %v", lines)
 	}
@@ -229,7 +230,7 @@ func TestMockDatasetPendingCommands(t *testing.T) {
 }
 
 func TestRunOtCtlWithContextFailure(t *testing.T) {
-	_, err := runOtCtlWithContext(context.Background(), "definitely-not-a-command")
+	_, err := thread.ExecRunner{}.Run(context.Background(), "definitely-not-a-command")
 	if err == nil {
 		t.Fatal("expected ot-ctl failure")
 	}

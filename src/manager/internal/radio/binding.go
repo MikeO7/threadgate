@@ -5,20 +5,16 @@ import (
 	"log"
 	"sync"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/config"
 	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
-// Binder resolves spinel URLs and keeps radio health fields current.
-type Binder interface {
-	CurrentSpinelURL() string
-	Refresh() error
-}
-
 // Binding owns radio resolution, probing, and runtime status updates.
 type Binding struct {
-	cfg     Config
-	status  *runtime.Tracker
+	cfg      Config
+	resolver *Resolver
+	status   *runtime.Tracker
 
 	mu         sync.RWMutex
 	spinelURL  string
@@ -26,8 +22,12 @@ type Binding struct {
 }
 
 // NewBinding resolves the initial radio URL, probes serial hardware, and updates status.
-func NewBinding(cfg Config, status *runtime.Tracker) (*Binding, error) {
-	b := &Binding{cfg: cfg, status: status}
+func NewBinding(cfg *config.Config, status *runtime.Tracker) (*Binding, error) {
+	b := &Binding{
+		cfg:      ConfigFrom(cfg),
+		resolver: NewResolver(cfg),
+		status:   status,
+	}
 	if err := b.resolve(false); err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (b *Binding) Refresh() error {
 }
 
 func (b *Binding) resolve(forceDiscover bool) error {
-	profile, err := ResolveProfile(b.cfg, forceDiscover)
+	profile, err := b.resolver.Resolve(forceDiscover)
 	if err != nil {
 		return fmt.Errorf("%v (please set OTBR_RADIO_URL explicitly)", err)
 	}

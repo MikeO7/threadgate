@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
-	"github.com/MikeO7/threadgate/src/manager/internal/radio"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
@@ -56,11 +56,11 @@ func newTestSupervisor(t *testing.T, cfg *config.Config, status *runtime.Tracker
 	if status == nil {
 		status = runtime.NewTracker()
 	}
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), status)
+	runtimeEnv, err := env.BootstrapWithStatus(cfg, status)
 	if err != nil {
-		t.Fatalf("NewBinding: %v", err)
+		t.Fatalf("BootstrapWithStatus: %v", err)
 	}
-	return New(cfg, radioBinding, status, launcher)
+	return New(runtimeEnv, launcher)
 }
 
 func TestSupervisorMock(t *testing.T) {

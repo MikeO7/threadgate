@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
@@ -126,7 +127,7 @@ func TestHandleTopology(t *testing.T) {
 }
 
 func TestHandleDashboardUsesConfiguredPort(t *testing.T) {
-	server := NewServer(9090, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(9090, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	rr := httptest.NewRecorder()
 
@@ -147,11 +148,15 @@ func TestMockMeshTables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildSnapshot failed: %v", err)
 	}
-	if len(snap.Neighbors) != mockNodeCount {
-		t.Fatalf("expected %d mesh nodes, got %d", mockNodeCount, len(snap.Neighbors))
+	if len(snap.Neighbors) != thread.MockMeshNodeCount {
+		t.Fatalf("expected %d mesh nodes, got %d", thread.MockMeshNodeCount, len(snap.Neighbors))
 	}
-	if len(snap.MeshLinks) < mockDirectCount {
-		t.Fatalf("expected at least %d mesh links, got %d", mockDirectCount, len(snap.MeshLinks))
+	if len(snap.MeshLinks) < thread.MockDirectCount+thread.MockEndDeviceCount {
+		t.Fatalf(
+			"expected at least %d mesh links, got %d",
+			thread.MockDirectCount+thread.MockEndDeviceCount,
+			len(snap.MeshLinks),
+		)
 	}
 }
 
@@ -159,7 +164,7 @@ func TestHandleHealth(t *testing.T) {
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "")
 
-	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/health", nil)
 	rr := httptest.NewRecorder()
 

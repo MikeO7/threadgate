@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
 const backupVersion = 1
@@ -30,43 +30,27 @@ type ConfigBackup struct {
 
 // BackupStore handles Thread credential export/import and on-disk backup files.
 type BackupStore struct {
-	threads  *ThreadService
+	threads  *thread.Client
 	stateDir string
 }
 
-// NewBackupStore wires backup operations to a ThreadService and optional state directory.
-func NewBackupStore(threads *ThreadService, stateDir string) *BackupStore {
+// NewBackupStore wires backup operations to a Thread client and optional state directory.
+func NewBackupStore(threads *thread.Client, stateDir string) *BackupStore {
 	return &BackupStore{threads: threads, stateDir: stateDir}
 }
 
 // Export collects live network credentials from ot-ctl.
 func (b *BackupStore) Export(ctx context.Context) (ConfigBackup, error) {
 	var backup ConfigBackup
-	var errs []error
 
 	backup.Version = backupVersion
 	backup.ExportedAt = time.Now().UTC().Format(time.RFC3339)
 
-	if v, err := b.threads.run(ctx, otctl.NetworkName.Args...); err != nil {
-		errs = append(errs, err)
-	} else {
-		backup.NetworkName = v
-	}
-	if v, err := b.threads.run(ctx, otctl.PanID.Args...); err != nil {
-		errs = append(errs, err)
-	} else {
-		backup.PanID = v
-	}
-	if v, err := b.threads.run(ctx, otctl.Channel.Args...); err != nil {
-		errs = append(errs, err)
-	} else {
-		backup.Channel = v
-	}
-	if v, err := b.threads.run(ctx, otctl.ExtAddr.Args...); err != nil {
-		errs = append(errs, err)
-	} else {
-		backup.ExtAddress = v
-	}
+	meta, metaErr := b.threads.ExportBackupMetadata(ctx)
+	backup.NetworkName = meta.NetworkName
+	backup.PanID = meta.PanID
+	backup.Channel = meta.Channel
+	backup.ExtAddress = meta.ExtAddress
 
 	active, err := b.threads.GetActiveDataset(ctx)
 	if err != nil {
@@ -79,10 +63,7 @@ func (b *BackupStore) Export(ctx context.Context) (ConfigBackup, error) {
 		backup.PendingDataset = strings.TrimSpace(pending)
 	}
 
-	if len(errs) > 0 {
-		return backup, fmt.Errorf("backup metadata: %w", errs[0])
-	}
-	return backup, nil
+	return backup, metaErr
 }
 
 // Import restores network credentials from a backup bundle.

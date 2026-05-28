@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/radio"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
@@ -51,7 +52,7 @@ func TestRadioBindingMock(t *testing.T) {
 		Runtime:      config.RuntimeModeMock,
 	}
 	tracker := runtime.NewTracker()
-	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), tracker)
+	radioBinding, err := radio.NewBinding(cfg, tracker)
 	if err != nil {
 		t.Fatalf("NewBinding failed: %v", err)
 	}
@@ -60,7 +61,7 @@ func TestRadioBindingMock(t *testing.T) {
 		t.Errorf("unexpected radio URL: %q", url)
 	}
 	tracker2 := runtime.NewTracker()
-	radioBinding, err = radio.NewBinding(radio.ConfigFrom(cfg), tracker2)
+	radioBinding, err = radio.NewBinding(cfg, tracker2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,12 +83,17 @@ func TestStartAPIServer(t *testing.T) {
 	_ = ln.Close()
 
 	cfg := &config.Config{
-		Port:     port,
-		Runtime:  config.RuntimeModeMock,
-		StateDir: t.TempDir(),
+		Port:         port,
+		Runtime:      config.RuntimeModeMock,
+		AutoDiscover: true,
+		StateDir:     t.TempDir(),
 	}
 
-	server, errChan := startAPIServer(cfg, nil)
+	runtimeEnv, err := env.Bootstrap(cfg)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	server, errChan := startAPIServer(runtimeEnv)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
