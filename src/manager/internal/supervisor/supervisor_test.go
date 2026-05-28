@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
@@ -160,73 +161,79 @@ func TestRunAgentOnceAutoDiscover(t *testing.T) {
 }
 
 func TestRunMockAgentLoopInnerCancel(t *testing.T) {
-	cfg := mockConfig(false)
-	s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx, s.cancelFunc = context.WithCancel(ctx)
+	synctest.Test(t, func(t *testing.T) {
+		cfg := mockConfig(false)
+		s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
+		ctx, cancel := context.WithCancel(context.Background())
+		s.ctx, s.cancelFunc = context.WithCancel(ctx)
 
-	done := make(chan struct{})
-	go func() {
-		s.runMockAgentLoop()
-		close(done)
-	}()
+		done := make(chan struct{})
+		go func() {
+			s.runMockAgentLoop()
+			close(done)
+		}()
 
-	time.Sleep(10 * time.Millisecond)
-	cancel()
+		time.Sleep(10 * time.Millisecond)
+		cancel()
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("runMockAgentLoop did not exit on inner cancel")
-	}
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("runMockAgentLoop did not exit on inner cancel")
+		}
+	})
 }
 
 func TestRunMockAgentLoopTimeoutCycle(t *testing.T) {
-	oldSleep := mockAgentSleep
-	mockAgentSleep = 20 * time.Millisecond
-	t.Cleanup(func() { mockAgentSleep = oldSleep })
+	synctest.Test(t, func(t *testing.T) {
+		oldSleep := mockAgentSleep
+		mockAgentSleep = 20 * time.Millisecond
+		t.Cleanup(func() { mockAgentSleep = oldSleep })
 
-	cfg := mockConfig(false)
-	s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx, s.cancelFunc = context.WithCancel(ctx)
+		cfg := mockConfig(false)
+		s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
+		ctx, cancel := context.WithCancel(context.Background())
+		s.ctx, s.cancelFunc = context.WithCancel(ctx)
 
-	done := make(chan struct{})
-	go func() {
-		s.runMockAgentLoop()
-		close(done)
-	}()
+		done := make(chan struct{})
+		go func() {
+			s.runMockAgentLoop()
+			close(done)
+		}()
 
-	time.Sleep(60 * time.Millisecond)
-	cancel()
+		time.Sleep(60 * time.Millisecond)
+		cancel()
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("runMockAgentLoop did not exit")
-	}
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("runMockAgentLoop did not exit")
+		}
+	})
 }
 
 func TestRunMockAgentLoopCancel(t *testing.T) {
-	cfg := mockConfig(false)
-	s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx, s.cancelFunc = context.WithCancel(ctx)
+	synctest.Test(t, func(t *testing.T) {
+		cfg := mockConfig(false)
+		s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
+		ctx, cancel := context.WithCancel(context.Background())
+		s.ctx, s.cancelFunc = context.WithCancel(ctx)
 
-	done := make(chan struct{})
-	go func() {
-		s.runMockAgentLoop()
-		close(done)
-	}()
+		done := make(chan struct{})
+		go func() {
+			s.runMockAgentLoop()
+			close(done)
+		}()
 
-	time.Sleep(50 * time.Millisecond)
-	cancel()
+		time.Sleep(50 * time.Millisecond)
+		cancel()
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("runMockAgentLoop did not exit after cancel")
-	}
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("runMockAgentLoop did not exit after cancel")
+		}
+	})
 }
 
 func TestRunAgentOnceStartFailure(t *testing.T) {

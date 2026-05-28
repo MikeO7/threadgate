@@ -16,6 +16,7 @@ import (
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
 	"github.com/MikeO7/threadgate/src/manager/internal/env"
 	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 	"github.com/MikeO7/threadgate/src/manager/internal/supervisor"
 )
 
@@ -38,6 +39,9 @@ func New() *App {
 
 // Run executes the application, starting all systems and coordinating their shutdown.
 func (a *App) Run() error {
+	runtime.StartFlightRecorder()
+	defer runtime.GlobalFlightRecorder.Stop()
+
 	log.Println("====================================================")
 	log.Println("      ThreadGate Standalone OTBR Orchestrator       ")
 	log.Println("====================================================")

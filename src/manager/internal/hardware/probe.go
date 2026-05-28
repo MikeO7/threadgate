@@ -22,7 +22,7 @@ var fcsTable [256]uint16
 var serialOpen = serial.Open
 
 func init() {
-	for i := uint16(0); i < 256; i++ {
+	for i := range uint16(256) {
 		entry := i
 		for range 8 {
 			if (entry & 1) != 0 {

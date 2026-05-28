@@ -66,6 +66,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		{"/api/backup/files/", s.handleBackup},
 		{"/api/backup/files", s.handleBackup},
 		{"/api/backup", s.handleBackup},
+		{"/api/trace/flush", s.handleTraceFlush},
 		{"/", s.handleDashboard},
 	}
 	for _, route := range routes {
@@ -281,3 +282,32 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func RunSnapshot(ctx context.Context, threads *thread.Client) (topology.Snapshot, error) {
 	return threads.BuildSnapshot(ctx)
 }
+
+func (s *Server) handleTraceFlush(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	tracePath := "/tmp/threadgate.trace"
+	if s.env.Config.StateDir != "" {
+		tracePath = fmt.Sprintf("%s/threadgate-%d.trace", s.env.Config.StateDir, time.Now().Unix())
+	}
+
+	err := runtime.GlobalFlightRecorder.Flush(tracePath)
+	if err != nil {
+		log.Printf("[API Server] Failed to flush flight recorder trace: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"path":    tracePath,
+		"message": "Continuous execution trace flushed successfully",
+	})
+}
+
