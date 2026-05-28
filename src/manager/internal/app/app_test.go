@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
+	"net/http"
 	"testing"
 	"time"
 
@@ -15,10 +15,7 @@ import (
 )
 
 func TestNewApp(t *testing.T) {
-	_ = os.Setenv("OTBR_MOCK_MODE", "true")
-	defer func() {
-		_ = os.Unsetenv("OTBR_MOCK_MODE")
-	}()
+	t.Setenv("OTBR_MOCK_MODE", "true")
 
 	application := New()
 	if application == nil {
@@ -33,13 +30,7 @@ func TestNewApp(t *testing.T) {
 }
 
 func TestFindAvailablePort(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	got := findAvailablePort(port)
 	if got != port {
@@ -77,13 +68,7 @@ func TestRadioBindingMock(t *testing.T) {
 }
 
 func TestStartAPIServer(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{
 		Port:         port,
@@ -108,7 +93,7 @@ func TestStartAPIServer(t *testing.T) {
 		}
 		select {
 		case err := <-errChan:
-			if err != nil {
+			if err != nil && err != http.ErrServerClosed {
 				t.Fatalf("server failed to start: %v", err)
 			}
 		default:

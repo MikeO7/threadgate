@@ -3,24 +3,16 @@ package app
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
 )
 
 func TestWaitForShutdownSignal(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{
 		Port:     port,
@@ -29,16 +21,7 @@ func TestWaitForShutdownSignal(t *testing.T) {
 	}
 
 	server, _ := bootstrapAPIServer(t, cfg)
-	deadline := time.Now().Add(2 * time.Second)
-	var dialer net.Dialer
-	for time.Now().Before(deadline) {
-		conn, dialErr := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
-		if dialErr == nil {
-			_ = conn.Close()
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	waitTCPPortReady(t, port)
 
 	super := testSupervisor(t, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,17 +35,11 @@ func TestWaitForShutdownSignal(t *testing.T) {
 }
 
 func TestWaitForShutdownServerClosed(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
 	server, _ := bootstrapAPIServer(t, cfg)
-	time.Sleep(50 * time.Millisecond)
+	waitTCPPortReady(t, port)
 
 	super := testSupervisor(t, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,17 +53,11 @@ func TestWaitForShutdownServerClosed(t *testing.T) {
 }
 
 func TestWaitForShutdownAPIFailure(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
 	server, _ := bootstrapAPIServer(t, cfg)
-	time.Sleep(50 * time.Millisecond)
+	waitTCPPortReady(t, port)
 
 	super := testSupervisor(t, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -106,18 +77,15 @@ func TestWaitForShutdownAPIFailure(t *testing.T) {
 }
 
 func TestFindAvailablePortInUse(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	port := reserveTCPPort(t)
+	ln := holdAppTCPPort(t, port)
 	defer func() { _ = ln.Close() }()
-	port := ln.Addr().(*net.TCPAddr).Port
 
 	got := findAvailablePort(port)
 	if got == port {
-		if got < port || got >= port+100 {
-			t.Fatalf("expected port in range [%d,%d), got %d", port, port+100, got)
-		}
+		t.Fatalf("expected a different port when :%d is in use, got same port", port)
+	}
+	if got < port || got >= port+100 {
+		t.Fatalf("expected port in range [%d,%d), got %d", port, port+100, got)
 	}
 }

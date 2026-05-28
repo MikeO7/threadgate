@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -81,13 +80,7 @@ func TestAppRunConfigError(t *testing.T) {
 }
 
 func TestAppRunWithProbeError(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{
 		Port:         port,
@@ -100,34 +93,16 @@ func TestAppRunWithProbeError(t *testing.T) {
 	}
 
 	// Keep hardware runtime but hide system daemons so supervisor boot fails consistently in CI.
-	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", t.TempDir())
-	t.Cleanup(func() { _ = os.Setenv("PATH", oldPath) })
 
-	oldWait := waitForShutdownHook
-	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
-		defer shutdownCancel()
-		_ = server.Shutdown(shutdownCtx)
-		super.Stop()
-		cancel()
-	}
-	t.Cleanup(func() { waitForShutdownHook = oldWait })
-
-	err = (&App{cfg: cfg}).Run()
+	err := (&App{cfg: cfg}).Run()
 	if err == nil {
 		t.Fatal("expected supervisor boot failure on hardware runtime")
 	}
 }
 
 func TestAppRunMock(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
+	port := reserveTCPPort(t)
 
 	cfg := &config.Config{
 		Port:         port,
@@ -154,12 +129,8 @@ func TestAppRunMock(t *testing.T) {
 }
 
 func TestAppRunPortRemap(t *testing.T) {
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
+	port := reserveTCPPort(t)
+	ln := holdAppTCPPort(t, port)
 
 	cfg := &config.Config{
 		Port:         port,
