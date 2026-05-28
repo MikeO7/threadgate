@@ -1,6 +1,26 @@
-# Built manager binary — build with: make build
+# Build outputs
 /threadgate
+src/manager/manager
 
-# Test and local runtime artifacts
+# Test & coverage
 coverage.out
+coverage.html
+*.test
+
+# Local runtime (docker-compose volume mount)
 data/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~

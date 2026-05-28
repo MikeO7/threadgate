@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
 func TestHandleActiveDatasetGet(t *testing.T) {
 	mockOtCtl := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
-		if strings.Join(args, " ") == otctlCmdDatasetActiveX {
+		if strings.Join(args, " ") == otctl.DatasetActive.Key() {
 			return activeDatasetHex, nil
 		}
 		return "", fmt.Errorf("unexpected command")
@@ -41,7 +43,7 @@ func mockActiveOtCtl(calledSet *bool, calledCommit *bool) FuncOtCtl {
 			*calledSet = true
 			return "", nil
 		}
-		if cmdStr == otctlCmdDatasetCommitActive {
+		if cmdStr == otctl.DatasetCommitActive.Key() {
 			*calledCommit = true
 			return "", nil
 		}
@@ -111,14 +113,14 @@ func TestHandleActiveDatasetPutInvalid(t *testing.T) {
 func mockPendingOtCtl(calledSet *bool, calledCommit *bool) FuncOtCtl {
 	return func(_ context.Context, args ...string) (string, error) {
 		cmdStr := strings.Join(args, " ")
-		if cmdStr == otctlCmdDatasetPendingX {
+		if cmdStr == otctl.DatasetPending.Key() {
 			return pendingDatasetHex, nil
 		}
 		if cmdStr == "dataset set pending 0e080000000000019999" {
 			*calledSet = true
 			return "", nil
 		}
-		if cmdStr == otctlCmdDatasetCommitPending {
+		if cmdStr == otctl.DatasetCommitPending.Key() {
 			*calledCommit = true
 			return "", nil
 		}

@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
 )
 
 func TestE2EMockMode(t *testing.T) {
@@ -242,7 +244,7 @@ func testTopology(t *testing.T, baseURL string) {
 		t.Errorf("Expected topology status 200, got %d", resp.StatusCode)
 	}
 
-	var snap Snapshot
+	var snap topology.Snapshot
 	if err := json.NewDecoder(resp.Body).Decode(&snap); err != nil {
 		t.Fatalf("Failed to decode topology JSON: %v", err)
 	}

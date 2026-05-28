@@ -8,6 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
 const (
@@ -21,15 +25,15 @@ func mockNodeInfoOtCtl(_ context.Context, args ...string) (string, error) {
 		return "", fmt.Errorf("no args")
 	}
 	switch args[0] {
-	case otctlCmdState:
+	case otctl.State.Args[0]:
 		return constLeaderTest, nil
-	case otctlCmdRloc16:
+	case otctl.Rloc16.Args[0]:
 		return "0xc000", nil
-	case otctlCmdExtAddr:
+	case otctl.ExtAddr.Args[0]:
 		return "1122334455667788", nil
-	case otctlCmdNetworkName:
+	case otctl.NetworkName.Args[0]:
 		return testNetworkName, nil
-	case otctlCmdPanID:
+	case otctl.PanID.Args[0]:
 		return "0x1234", nil
 	}
 	return "", fmt.Errorf("unknown command: %v", args)
@@ -68,9 +72,9 @@ func TestHandleDiagnostics(t *testing.T) {
 			return "", nil
 		}
 		switch args[0] {
-		case otctlCmdCounters:
+		case otctl.Counters.Args[0]:
 			return "counter1\ncounter2", nil
-		case otctlCmdIPAddr:
+		case otctl.IPAddr.Args[0]:
 			return "fd00::1\nfd00::2", nil
 		case "neighbor":
 			return "neighbor1\nneighbor2", nil
@@ -109,7 +113,7 @@ func TestHandleTopology(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 
-	var snap Snapshot
+	var snap topology.Snapshot
 	if err := json.Unmarshal(rr.Body.Bytes(), &snap); err != nil {
 		t.Fatalf("failed to decode topology: %v", err)
 	}
@@ -122,7 +126,7 @@ func TestHandleTopology(t *testing.T) {
 }
 
 func TestHandleDashboardUsesConfiguredPort(t *testing.T) {
-	server := NewServer(9090, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "")
+	server := NewServer(9090, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	rr := httptest.NewRecorder()
 
@@ -138,43 +142,42 @@ func TestHandleDashboardUsesConfiguredPort(t *testing.T) {
 }
 
 func TestMockMeshTables(t *testing.T) {
-	otctl := NewMockOtCtl()
-	ctx := context.Background()
-
-	neighborOutput, err := otctl.Run(ctx, "neighbor", "table")
+	svc := NewThreadService(NewMockOtCtl(), CollectBestEffort)
+	snap, err := svc.BuildSnapshot(context.Background())
 	if err != nil {
-		t.Fatalf("neighbor table failed: %v", err)
+		t.Fatalf("BuildSnapshot failed: %v", err)
 	}
-	neighbors := parseNeighborTable(neighborOutput)
-	if len(neighbors) != mockDirectCount {
-		t.Fatalf("expected %d direct mock neighbors, got %d", mockDirectCount, len(neighbors))
+	if len(snap.Neighbors) != mockNodeCount {
+		t.Fatalf("expected %d mesh nodes, got %d", mockNodeCount, len(snap.Neighbors))
+	}
+	if len(snap.MeshLinks) < mockDirectCount {
+		t.Fatalf("expected at least %d mesh links, got %d", mockDirectCount, len(snap.MeshLinks))
+	}
+}
+
+func TestHandleHealth(t *testing.T) {
+	tracker := runtime.NewTracker()
+	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "")
+
+	server := NewServer(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/health", nil)
+	rr := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 
-	routerOutput, err := otctl.Run(ctx, "router", "table")
-	if err != nil {
-		t.Fatalf("router table failed: %v", err)
-	}
-	routers := parseRouterTable(routerOutput)
-	if len(routers) != mockNodeCount {
-		t.Fatalf("expected %d mock routers, got %d", mockNodeCount, len(routers))
+	var status runtime.Status
+	if err := json.Unmarshal(rr.Body.Bytes(), &status); err != nil {
+		t.Fatalf("failed to parse health response: %v", err)
 	}
 
-	childOutput, err := otctl.Run(ctx, "child", "table")
-	if err != nil {
-		t.Fatalf("child table failed: %v", err)
+	if status.ProbedVersion != "TestVersion/1.0" {
+		t.Errorf("expected ProbedVersion 'TestVersion/1.0', got %q", status.ProbedVersion)
 	}
-	children := parseChildTable(childOutput)
-	if len(children) != 4 {
-		t.Fatalf("expected 4 mock children, got %d", len(children))
-	}
-
-	meshNodes := mergeMeshNodes(neighbors, children, routers)
-	if len(meshNodes) != mockNodeCount {
-		t.Fatalf("expected %d mesh nodes, got %d", mockNodeCount, len(meshNodes))
-	}
-
-	links := buildMeshLinks("0xc000", neighbors, children, routers)
-	if len(links) < mockDirectCount {
-		t.Fatalf("expected at least %d mesh links, got %d", mockDirectCount, len(links))
+	if status.RadioPath != "/dev/ttyTEST" {
+		t.Errorf("expected RadioPath '/dev/ttyTEST', got %q", status.RadioPath)
 	}
 }

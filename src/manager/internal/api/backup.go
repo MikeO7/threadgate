@@ -16,8 +16,7 @@ func (s *Server) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	backup, err := s.threads.ExportBackup(r.Context())
+	backup, err := s.backup.Export(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to export backup: %v", err), http.StatusInternalServerError)
 		return
@@ -37,18 +36,17 @@ func (s *Server) handleBackupImport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	backup, err := parseConfigBackup(r)
+	backup, err := ParseConfigBackupRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := validateConfigBackup(backup); err != nil {
+	if err := ValidateConfigBackup(backup); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := s.threads.ImportBackup(r.Context(), backup); err != nil {
+	if err := s.backup.Import(r.Context(), backup); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to import backup: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -65,33 +63,14 @@ func (s *Server) handleBackupSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.stateDir == "" {
+	if s.backup.stateDir == "" {
 		http.Error(w, "Backup storage is not configured", http.StatusServiceUnavailable)
 		return
 	}
 
-	backup, err := s.threads.ExportBackup(r.Context())
+	filename, path, err := s.backup.Save(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to export backup: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	dir := backupDir(s.stateDir)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create backup directory: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	filename := fmt.Sprintf("threadgate-backup-%s.json", time.Now().UTC().Format("20060102-150405"))
-	path := filepath.Join(dir, filename)
-
-	data, err := json.MarshalIndent(backup, "", "  ")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode backup: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write backup: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to save backup: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -108,29 +87,15 @@ func (s *Server) handleBackupFiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.stateDir == "" {
+	if s.backup.stateDir == "" {
 		http.Error(w, "Backup storage is not configured", http.StatusServiceUnavailable)
 		return
 	}
 
-	dir := backupDir(s.stateDir)
-	entries, err := os.ReadDir(dir)
+	files, err := s.backup.ListFiles()
 	if err != nil {
-		if os.IsNotExist(err) {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]string{})
-			return
-		}
 		http.Error(w, fmt.Sprintf("Failed to list backups: %v", err), http.StatusInternalServerError)
 		return
-	}
-
-	var files []string
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		files = append(files, e.Name())
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -140,7 +105,7 @@ func (s *Server) handleBackupFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBackupFileGet(w http.ResponseWriter, r *http.Request, name string) {
-	data, err := readStoredBackup(s.stateDir, name)
+	data, err := s.backup.ReadFile(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.NotFound(w, r)
@@ -161,7 +126,7 @@ func (s *Server) handleBackupFileGet(w http.ResponseWriter, r *http.Request, nam
 }
 
 func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request, name string) {
-	data, err := readStoredBackup(s.stateDir, name)
+	data, err := s.backup.ReadFile(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.NotFound(w, r)
@@ -182,11 +147,11 @@ func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request,
 	if backup.Version == 0 {
 		backup.Version = backupVersion
 	}
-	if err := validateConfigBackup(backup); err != nil {
+	if err := ValidateConfigBackup(backup); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := s.threads.ImportBackup(r.Context(), backup); err != nil {
+	if err := s.backup.Import(r.Context(), backup); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to import backup: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -198,7 +163,7 @@ func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) handleBackupFile(w http.ResponseWriter, r *http.Request) {
-	if s.stateDir == "" {
+	if s.backup.stateDir == "" {
 		http.Error(w, "Backup storage is not configured", http.StatusServiceUnavailable)
 		return
 	}

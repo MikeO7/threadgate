@@ -1,9 +1,6 @@
-package api
+package topology
 
-import (
-	"context"
-	"testing"
-)
+import "testing"
 
 func TestBuildMeshLinks(t *testing.T) {
 	gateway := "0xc000"
@@ -47,33 +44,4 @@ func TestParseRouterTableMock(t *testing.T) {
 	if routers[0].NextHopID != 2 || routers[0].PathCost != 2 {
 		t.Fatalf("unexpected router entry: %+v", routers[0])
 	}
-}
-
-func TestMockTopologyConsistency(t *testing.T) {
-	otctl := NewMockOtCtl()
-	ctx := context.Background()
-
-	neighbors := parseNeighborTable(mustRunOtCtl(ctx, t, otctl, "neighbor", "table"))
-	children := parseChildTable(mustRunOtCtl(ctx, t, otctl, "child", "table"))
-	routers := parseRouterTable(mustRunOtCtl(ctx, t, otctl, "router", "table"))
-	links := buildMeshLinks("0xc000", neighbors, children, routers)
-
-	if len(neighbors) != mockDirectCount {
-		t.Fatalf("expected %d direct neighbors, got %d", mockDirectCount, len(neighbors))
-	}
-	if len(routers) != mockNodeCount {
-		t.Fatalf("expected %d routers, got %d", mockNodeCount, len(routers))
-	}
-	if len(links) == 0 {
-		t.Fatal("expected topology links")
-	}
-}
-
-func mustRunOtCtl(ctx context.Context, t *testing.T, otctl OtCtl, args ...string) string {
-	t.Helper()
-	out, err := otctl.Run(ctx, args...)
-	if err != nil {
-		t.Fatalf("otctl failed: %v", err)
-	}
-	return out
 }

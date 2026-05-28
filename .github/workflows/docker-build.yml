@@ -9,6 +9,7 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
+      - '.dockerignore'
       - 'LICENSE'
   pull_request:
     branches:
@@ -16,6 +17,7 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
+      - '.dockerignore'
       - 'LICENSE'
 
 permissions:

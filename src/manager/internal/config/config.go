@@ -10,29 +10,33 @@ import (
 
 // Config holds all orchestrator configuration parameters
 type Config struct {
-	RadioURL     string // Spinel URL e.g. "spinel+hdlc+uart:///dev/ttyUSB0"
-	Baudrate     int    // UART Baudrate, e.g. 460800
-	LogLevel     string // "debug", "info", "warn", "error"
-	Port         int    // Web / REST API port, defaults to 8081
-	AutoDiscover bool   // Whether to auto-discover USB serial devices
-	StateDir     string // Directory to persist operational state, defaults to /data
-	MockMode     bool   // Whether mock mode is enabled for testing
-	Runtime      RuntimeMode
-	FlowControl  bool   // Whether hardware flow control is enabled (e.g. for SkyConnect)
-	BackboneIF   string // Backbone interface for border routing (e.g. eth0, wlan0)
+	RadioURL            string // Spinel URL e.g. "spinel+hdlc+uart:///dev/ttyUSB0"
+	Baudrate            int    // UART Baudrate, e.g. 460800
+	LogLevel            string // "debug", "info", "warn", "error"
+	Port                int    // Web / REST API port, defaults to 8081
+	AutoDiscover        bool   // Whether to auto-discover USB serial devices
+	StateDir            string // Directory to persist operational state, defaults to /data
+	Runtime             RuntimeMode
+	FlowControl         bool // Whether hardware flow control is enabled (e.g. for SkyConnect)
+	ExplicitFlowControl bool // Whether FlowControl was set explicitly in the environment
+	ExplicitBaudrate    bool // Whether Baudrate was set explicitly in the environment
+	BackboneIF          string // Backbone interface for border routing (e.g. eth0, wlan0)
 }
 
 // Load reads values from the environment or assigns safe defaults
 func Load() *Config {
 	mockMode := getEnvBool("OTBR_MOCK_MODE", false)
+	_, explicitFlowControl := os.LookupEnv("OTBR_FLOW_CONTROL")
+	_, explicitBaudrate := os.LookupEnv("OTBR_BAUDRATE")
 	cfg := &Config{
-		RadioURL:     os.Getenv("OTBR_RADIO_URL"),
-		LogLevel:     getEnv("OTBR_LOG_LEVEL", "info"),
-		AutoDiscover: getEnvBool("OTBR_AUTO_DISCOVER", true),
-		StateDir:     getEnv("OTBR_STATE_DIR", "/data"),
-		MockMode:     mockMode,
-		Runtime:      RuntimeModeFromMock(mockMode),
-		FlowControl:  getEnvBool("OTBR_FLOW_CONTROL", false),
+		RadioURL:            os.Getenv("OTBR_RADIO_URL"),
+		LogLevel:            getEnv("OTBR_LOG_LEVEL", "info"),
+		AutoDiscover:        getEnvBool("OTBR_AUTO_DISCOVER", true),
+		StateDir:            getEnv("OTBR_STATE_DIR", "/data"),
+		Runtime:             RuntimeModeFromMock(mockMode),
+		FlowControl:         getEnvBool("OTBR_FLOW_CONTROL", false),
+		ExplicitFlowControl: explicitFlowControl,
+		ExplicitBaudrate:    explicitBaudrate,
 	}
 
 	baud, err := strconv.Atoi(os.Getenv("OTBR_BAUDRATE"))
@@ -58,8 +62,10 @@ func Load() *Config {
 	return cfg
 }
 
+var listInterfaces = net.Interfaces
+
 func detectBackboneInterface() string {
-	ifaces, err := net.Interfaces()
+	ifaces, err := listInterfaces()
 	if err != nil {
 		return "eth0"
 	}

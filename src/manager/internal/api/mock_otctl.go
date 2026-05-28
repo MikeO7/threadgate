@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
 const (
@@ -133,57 +135,39 @@ func NewMockOtCtl() *MockOtCtl {
 func (m *MockOtCtl) Run(_ context.Context, args ...string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return runMockCommand(&m.state, strings.Join(args, " "))
+	return runMockCommand(&m.state, otctl.Command{Args: args}.Key())
 }
 
 func runMockCommand(state *mockStateData, cmd string) (string, error) {
-	if val, ok := runMockNodeCommand(state, cmd); ok {
-		return val, nil
-	}
-	if val, ok := runMockDiagCommand(state, cmd); ok {
-		return val, nil
-	}
-	if cmd == otctlCmdDatasetActiveX {
+	switch cmd {
+	case otctl.State.Key():
+		return state.state, nil
+	case otctl.Rloc16.Key():
+		return state.rloc16, nil
+	case otctl.ExtAddr.Key():
+		return state.extaddr, nil
+	case otctl.NetworkName.Key():
+		return state.networkname, nil
+	case otctl.PanID.Key():
+		return state.panid, nil
+	case otctl.Channel.Key():
+		return state.channel, nil
+	case otctl.Counters.Key():
+		return state.counters, nil
+	case otctl.IPAddr.Key():
+		return state.ipaddr, nil
+	case otctl.NeighborTable.Key():
+		return state.neighborTable, nil
+	case otctl.ChildTable.Key():
+		return state.childTable, nil
+	case otctl.RouterTable.Key():
+		return state.routerTable, nil
+	case otctl.DatasetActive.Key():
 		return state.activeHex, nil
-	}
-	if cmd == otctlCmdDatasetPendingX {
+	case otctl.DatasetPending.Key():
 		return state.pendingHex, nil
 	}
 	return runMockDatasetCommand(state, cmd)
-}
-
-func runMockNodeCommand(state *mockStateData, cmd string) (string, bool) {
-	switch cmd {
-	case otctlCmdState:
-		return state.state, true
-	case otctlCmdRloc16:
-		return state.rloc16, true
-	case otctlCmdExtAddr:
-		return state.extaddr, true
-	case otctlCmdNetworkName:
-		return state.networkname, true
-	case otctlCmdPanID:
-		return state.panid, true
-	case otctlCmdChannel:
-		return state.channel, true
-	}
-	return "", false
-}
-
-func runMockDiagCommand(state *mockStateData, cmd string) (string, bool) {
-	switch cmd {
-	case otctlCmdCounters:
-		return state.counters, true
-	case otctlCmdIPAddr:
-		return state.ipaddr, true
-	case otctlCmdNeighborTable:
-		return state.neighborTable, true
-	case otctlCmdChildTable:
-		return state.childTable, true
-	case otctlCmdRouterTable:
-		return state.routerTable, true
-	}
-	return "", false
 }
 
 func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {
@@ -191,12 +175,12 @@ func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {
 	case strings.HasPrefix(cmd, "dataset set active "):
 		state.activeHex = strings.TrimPrefix(cmd, "dataset set active ")
 		return constDone, nil
-	case cmd == otctlCmdDatasetCommitActive:
+	case cmd == otctl.DatasetCommitActive.Key():
 		return constDone, nil
 	case strings.HasPrefix(cmd, "dataset set pending "):
 		state.pendingHex = strings.TrimPrefix(cmd, "dataset set pending ")
 		return constDone, nil
-	case cmd == otctlCmdDatasetCommitPending:
+	case cmd == otctl.DatasetCommitPending.Key():
 		return constDone, nil
 	}
 

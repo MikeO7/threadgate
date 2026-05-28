@@ -35,8 +35,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.StateDir != "/data" {
 		t.Errorf("Expected StateDir default '/data', got %q", cfg.StateDir)
 	}
-	if cfg.MockMode {
-		t.Errorf("Expected MockMode default false, got %t", cfg.MockMode)
+	if cfg.Runtime.IsMock() {
+		t.Errorf("Expected mock runtime default false, got mock")
 	}
 }
 
@@ -79,8 +79,8 @@ func TestLoadCustomValues(t *testing.T) {
 	if cfg.StateDir != "/tmp/state" {
 		t.Errorf("Expected StateDir '/tmp/state', got %q", cfg.StateDir)
 	}
-	if !cfg.MockMode {
-		t.Errorf("Expected MockMode true, got %t", cfg.MockMode)
+	if !cfg.Runtime.IsMock() {
+		t.Errorf("Expected mock runtime true, got hardware")
 	}
 }
 

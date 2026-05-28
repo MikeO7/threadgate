@@ -17,6 +17,9 @@ const (
 
 var fcsTable [256]uint16
 
+// serialOpen opens a serial port (overridable in tests).
+var serialOpen = serial.Open
+
 func init() {
 	for i := 0; i < 256; i++ {
 		entry := uint16(i)
@@ -164,7 +167,7 @@ func ProbeDevice(portPath string, baudrate int) (string, error) {
 		StopBits: serial.OneStopBit,
 	}
 
-	port, err := serial.Open(portPath, mode)
+	port, err := serialOpen(portPath, mode)
 	if err != nil {
 		return "", fmt.Errorf("failed to open serial port %s: %w", portPath, err)
 	}

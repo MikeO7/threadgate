@@ -1,4 +1,4 @@
-package api
+package topology
 
 func findRouteParentLink(links []MeshLink, currentKey string) *MeshLink {
 	for i := range links {

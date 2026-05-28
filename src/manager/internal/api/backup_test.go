@@ -10,21 +10,23 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
 func mockBackupOtCtl(calledActiveSet, calledActiveCommit, calledPendingSet, calledPendingCommit *bool) FuncOtCtl {
 	handlers := map[string]func() (string, error){
-		otctlCmdNetworkName: func() (string, error) { return testNetworkName, nil },
-		otctlCmdPanID:       func() (string, error) { return "0x1234", nil },
-		otctlCmdChannel:     func() (string, error) { return "15", nil },
-		otctlCmdExtAddr:     func() (string, error) { return "1122334455667788", nil },
-		otctlCmdDatasetActiveX:  func() (string, error) { return activeDatasetHex, nil },
-		otctlCmdDatasetPendingX: func() (string, error) { return pendingDatasetHex, nil },
+		otctl.NetworkName.Key(): func() (string, error) { return testNetworkName, nil },
+		otctl.PanID.Key():       func() (string, error) { return "0x1234", nil },
+		otctl.Channel.Key():     func() (string, error) { return "15", nil },
+		otctl.ExtAddr.Key():     func() (string, error) { return "1122334455667788", nil },
+		otctl.DatasetActive.Key():  func() (string, error) { return activeDatasetHex, nil },
+		otctl.DatasetPending.Key(): func() (string, error) { return pendingDatasetHex, nil },
 		"dataset set active " + activeDatasetHex: func() (string, error) {
 			*calledActiveSet = true
 			return "", nil
 		},
-		otctlCmdDatasetCommitActive: func() (string, error) {
+		otctl.DatasetCommitActive.Key(): func() (string, error) {
 			*calledActiveCommit = true
 			return "", nil
 		},
@@ -32,7 +34,7 @@ func mockBackupOtCtl(calledActiveSet, calledActiveCommit, calledPendingSet, call
 			*calledPendingSet = true
 			return "", nil
 		},
-		otctlCmdDatasetCommitPending: func() (string, error) {
+		otctl.DatasetCommitPending.Key(): func() (string, error) {
 			*calledPendingCommit = true
 			return "", nil
 		},
@@ -125,7 +127,7 @@ func TestHandleBackupImportInvalid(t *testing.T) {
 
 func TestHandleBackupSave(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir)
+	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -151,7 +153,7 @@ func TestHandleBackupSave(t *testing.T) {
 
 func TestHandleBackupFilesList(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir)
+	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -184,7 +186,7 @@ func TestHandleBackupFilesList(t *testing.T) {
 
 func TestHandleBackupFileRestore(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir)
+	server := NewServer(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -204,6 +206,7 @@ func TestHandleBackupFileRestore(t *testing.T) {
 	server.threads = NewThreadService(mockBackupOtCtl(
 		&calledActiveSet, &calledActiveCommit, new(bool), new(bool),
 	), CollectBestEffort)
+	server.backup = NewBackupStore(server.threads, dir)
 
 	reqRestore := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+filename, nil)
 	rrRestore := httptest.NewRecorder()

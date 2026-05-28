@@ -1,25 +1,29 @@
 package hardware
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestAuditHostSafety(t *testing.T) {
-	// AuditHost should run gracefully on all platforms (even if sysctl files are missing)
 	audit := AuditHost()
-
-	// Ensure warnings slice is populated if check fails, but never panic
 	_ = audit.Warnings
 }
 
-func TestHealthStatusGlobal(t *testing.T) {
-	hs := HealthStatus{
-		ProbedVersion: "TestVersion/1.0",
-		RadioPath:     "/dev/ttyTEST",
+func TestCheckSysctl(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "forwarding")
+	if err := os.WriteFile(path, []byte("1\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	SetHealth(hs)
-	retrieved := GetHealth()
-	if ret := retrieved.ProbedVersion; ret != "TestVersion/1.0" {
-		t.Errorf("Expected ProbedVersion TestVersion/1.0, got %s", ret)
+	if !checkSysctl(path, "1") {
+		t.Error("expected matching sysctl value")
+	}
+	if checkSysctl(path, "0") {
+		t.Error("expected non-matching sysctl value")
+	}
+	if checkSysctl(filepath.Join(dir, "missing"), "1") {
+		t.Error("expected missing file to return false")
 	}
 }

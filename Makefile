@@ -108,4 +108,7 @@ tools:
 clean:
 	@echo "🧹 Cleaning compiled artifacts..."
 	rm -f $(BINARY_NAME)
+	rm -f $(SRC_DIR)/manager
 	rm -f coverage.out
+	rm -f $(SRC_DIR)/coverage.out
+	rm -f coverage.html

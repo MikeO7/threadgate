@@ -1,0 +1,297 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/api"
+	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/radio"
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/supervisor"
+)
+
+func TestFindAvailablePortFallback(t *testing.T) {
+	if got := findAvailablePort(65500); got != 65500 {
+		t.Errorf("expected fallback port 65500, got %d", got)
+	}
+}
+
+func TestRadioBindingHardwareProbeError(t *testing.T) {
+	cfg := &config.Config{
+		Baudrate: 115200,
+		Runtime:  config.RuntimeModeHardware,
+		RadioURL: "spinel+hdlc+uart:///dev/ttyDOESNOTEXIST999?uart-baudrate=115200",
+	}
+	tracker := runtime.NewTracker()
+	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), tracker)
+	if err != nil {
+		t.Fatalf("NewBinding failed: %v", err)
+	}
+	if tracker.GetStatus().ProbeError == "" {
+		t.Fatal("expected probe failure for missing device")
+	}
+	_ = radioBinding
+}
+
+func TestRadioBindingExplicitURL(t *testing.T) {
+	cfg := &config.Config{
+		RadioURL:            "spinel+hdlc+uart:///dev/ttyUSB1?uart-baudrate=115200",
+		AutoDiscover:        false,
+		Baudrate:            460800,
+		ExplicitFlowControl: true,
+		FlowControl:         true,
+		Runtime:             config.RuntimeModeHardware,
+	}
+	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), runtime.NewTracker())
+	if err != nil {
+		t.Fatalf("NewBinding failed: %v", err)
+	}
+	url := radioBinding.CurrentSpinelURL()
+	if url != "spinel+hdlc+uart:///dev/ttyUSB1?uart-baudrate=115200&uart-flow-control=0" {
+		t.Errorf("unexpected URL: %q", url)
+	}
+}
+
+func TestRadioBindingConfigError(t *testing.T) {
+	cfg := &config.Config{
+		AutoDiscover: false,
+		Runtime:      config.RuntimeModeHardware,
+	}
+	_, err := radio.NewBinding(radio.ConfigFrom(cfg), runtime.NewTracker())
+	if err == nil {
+		t.Fatal("expected configuration error")
+	}
+}
+
+func TestAppRunConfigError(t *testing.T) {
+	cfg := &config.Config{
+		AutoDiscover: false,
+		Runtime:      config.RuntimeModeHardware,
+		StateDir:     t.TempDir(),
+	}
+	err := (&App{cfg: cfg}).Run()
+	if err == nil {
+		t.Fatal("expected configuration error")
+	}
+}
+
+func TestAppRunWithProbeError(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	cfg := &config.Config{
+		Port:         port,
+		RadioURL:     "spinel+hdlc+uart:///dev/ttyDOESNOTEXIST999?uart-baudrate=115200",
+		AutoDiscover: false,
+		Baudrate:     115200,
+		Runtime:      config.RuntimeModeHardware,
+		StateDir:     t.TempDir(),
+		LogLevel:     "info",
+	}
+
+	oldWait := waitForShutdownHook
+	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
+		super.Stop()
+		cancel()
+	}
+	t.Cleanup(func() { waitForShutdownHook = oldWait })
+
+	err = (&App{cfg: cfg}).Run()
+	if err == nil {
+		t.Fatal("expected supervisor boot failure on hardware runtime")
+	}
+}
+
+func TestAppRunMock(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	cfg := &config.Config{
+		Port:         port,
+		Runtime:      config.RuntimeModeMock,
+		AutoDiscover: true,
+		Baudrate:     460800,
+		StateDir:     t.TempDir(),
+		LogLevel:     "info",
+	}
+
+	oldWait := waitForShutdownHook
+	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
+		super.Stop()
+		cancel()
+	}
+	t.Cleanup(func() { waitForShutdownHook = oldWait })
+
+	if err := (&App{cfg: cfg}).Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+}
+
+func TestAppRunPortRemap(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	cfg := &config.Config{
+		Port:         port,
+		Runtime:      config.RuntimeModeMock,
+		AutoDiscover: true,
+		Baudrate:     460800,
+		StateDir:     t.TempDir(),
+	}
+
+	oldWait := waitForShutdownHook
+	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
+		super.Stop()
+		cancel()
+		_ = ln.Close()
+	}
+	t.Cleanup(func() { waitForShutdownHook = oldWait })
+
+	if err := (&App{cfg: cfg}).Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+}
+
+func testSupervisor(t *testing.T, cfg *config.Config) *supervisor.Supervisor {
+	t.Helper()
+	if !cfg.AutoDiscover && cfg.RadioURL == "" {
+		cfg.AutoDiscover = true
+	}
+	tracker := runtime.NewTracker()
+	radioBinding, err := radio.NewBinding(radio.ConfigFrom(cfg), tracker)
+	if err != nil {
+		t.Fatalf("NewBinding: %v", err)
+	}
+	return supervisor.New(cfg, radioBinding, tracker, supervisor.ExecLauncher{})
+}
+
+func TestWaitForShutdownSignal(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	cfg := &config.Config{
+		Port:     port,
+		Runtime:  config.RuntimeModeMock,
+		StateDir: t.TempDir(),
+	}
+
+	server, _ := startAPIServer(cfg, nil)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, dialErr := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		if dialErr == nil {
+			_ = conn.Close()
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	super := testSupervisor(t, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := super.Start(ctx); err != nil {
+		t.Fatalf("supervisor start failed: %v", err)
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	sigCh <- syscall.SIGTERM
+	waitForShutdown(server, super, cancel, nil, sigCh)
+}
+
+func TestWaitForShutdownServerClosed(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
+	server, _ := startAPIServer(cfg, nil)
+	time.Sleep(50 * time.Millisecond)
+
+	super := testSupervisor(t, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := super.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	errChan := make(chan error, 1)
+	errChan <- http.ErrServerClosed
+	waitForShutdown(server, super, cancel, errChan, nil)
+}
+
+func TestWaitForShutdownAPIFailure(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	cfg := &config.Config{Port: port, Runtime: config.RuntimeModeMock, StateDir: t.TempDir()}
+	server, _ := startAPIServer(cfg, nil)
+	time.Sleep(50 * time.Millisecond)
+
+	super := testSupervisor(t, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	_ = super.Start(ctx)
+
+	oldFatal := fatalLog
+	fatalCalled := false
+	fatalLog = func(string, ...any) { fatalCalled = true }
+	t.Cleanup(func() { fatalLog = oldFatal })
+
+	errChan := make(chan error, 1)
+	errChan <- fmt.Errorf("listener crashed")
+	waitForShutdown(server, super, cancel, errChan, nil)
+	if !fatalCalled {
+		t.Fatal("expected fatal log on critical API failure")
+	}
+}
+
+func TestFindAvailablePortInUse(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	got := findAvailablePort(port)
+	if got == port {
+		if got < port || got >= port+100 {
+			t.Fatalf("expected port in range [%d,%d), got %d", port, port+100, got)
+		}
+	}
+}

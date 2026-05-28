@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
 // OtCtl is the seam for local ot-ctl execution (exec adapter in prod, mock adapter in tests).
-type OtCtl interface {
-	Run(ctx context.Context, args ...string) (string, error)
-}
+type OtCtl = otctl.Runner
 
 // ExecOtCtl runs ot-ctl as a subprocess.
 type ExecOtCtl struct{}

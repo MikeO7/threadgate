@@ -3,9 +3,9 @@ package hardware
 import (
 	"os"
 	"strings"
-	"sync"
 )
 
+// HostAudit captures host-level routing and TUN readiness for border routing.
 type HostAudit struct {
 	IPv6ForwardingAll     bool     `json:"ipv6ForwardingAll"`
 	IPv6ForwardingDefault bool     `json:"ipv6ForwardingDefault"`
@@ -13,32 +13,6 @@ type HostAudit struct {
 	IPv6AcceptRaDefault   bool     `json:"ipv6AcceptRaDefault"`
 	TunDeviceExists       bool     `json:"tunDeviceExists"`
 	Warnings              []string `json:"warnings"`
-}
-
-type HealthStatus struct {
-	HostAudit     HostAudit `json:"hostAudit"`
-	ProbedVersion string    `json:"probedVersion"`
-	ProbeError    string    `json:"probeError,omitempty"`
-	RadioPath     string    `json:"radioPath,omitempty"`
-}
-
-var (
-	globalHealthMu sync.RWMutex
-	globalHealth   HealthStatus
-)
-
-// SetHealth updates the global health status.
-func SetHealth(hs HealthStatus) {
-	globalHealthMu.Lock()
-	defer globalHealthMu.Unlock()
-	globalHealth = hs
-}
-
-// GetHealth returns the current global health status.
-func GetHealth() HealthStatus {
-	globalHealthMu.RLock()
-	defer globalHealthMu.RUnlock()
-	return globalHealth
 }
 
 // AuditHost checks host-level routing configurations and virtual interface capabilities.

@@ -2,13 +2,17 @@ package api
 
 import (
 	"context"
-	"strings"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
 
 func TestThreadServiceBuildSnapshot(t *testing.T) {
-	otctl := FuncOtCtl(snapshotFixtureOtCtl(t))
-	svc := NewThreadService(otctl, CollectBestEffort)
+	otctlRunner := FuncOtCtl(snapshotFixtureOtCtl(t))
+	svc := NewThreadService(otctlRunner, CollectBestEffort)
 
 	snap, err := svc.BuildSnapshot(context.Background())
 	if err != nil {
@@ -28,15 +32,35 @@ func TestThreadServiceBuildSnapshot(t *testing.T) {
 	}
 }
 
-func TestBuildSnapshotStrictMode(t *testing.T) {
-	otctl := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
-		if len(args) > 0 && args[0] == otctlCmdState {
+func TestThreadServiceBuildSnapshotPartialFailure(t *testing.T) {
+	otctlRunner := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+		key := otctl.Command{Args: args}.Key()
+		if key == otctl.State.Key() {
 			return "", context.Canceled
 		}
 		return "ok", nil
 	})
+	svc := NewThreadService(otctlRunner, CollectBestEffort)
 
-	_, err := BuildSnapshot(context.Background(), otctl, SnapshotBuildOptions{Mode: CollectStrict})
+	snap, err := svc.BuildSnapshot(context.Background())
+	if err == nil {
+		t.Fatal("expected best-effort partial snapshot error")
+	}
+	if len(snap.Warnings) == 0 {
+		t.Fatal("expected warnings on partial snapshot")
+	}
+}
+
+func TestThreadServiceBuildSnapshotStrictMode(t *testing.T) {
+	otctlRunner := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+		if len(args) > 0 && args[0] == otctl.State.Args[0] {
+			return "", context.Canceled
+		}
+		return "ok", nil
+	})
+	svc := NewThreadService(otctlRunner, CollectStrict)
+
+	_, err := svc.BuildSnapshot(context.Background())
 	if err == nil {
 		t.Fatal("expected strict collection to fail on first error")
 	}
@@ -45,25 +69,36 @@ func TestBuildSnapshotStrictMode(t *testing.T) {
 func snapshotFixtureOtCtl(t *testing.T) func(context.Context, ...string) (string, error) {
 	t.Helper()
 	fixtures := map[string]string{
-		otctlCmdState:             "leader",
-		otctlCmdNetworkName:       testNetworkName,
-		otctlCmdExtAddr:           "1122334455667788",
-		otctlCmdPanID:             "0x1234",
-		otctlCmdChannel:          "15",
-		otctlCmdRloc16:           "0xc000",
-		otctlCmdDatasetActiveX:   activeDatasetHex,
-		otctlCmdIPAddr:           "fd00::1",
-		otctlCmdCounters:         "MacTxUnique=1",
-		otctlCmdNeighborTable:    readFixture(t, "neighbor_table.txt"),
-		otctlCmdChildTable:       readFixture(t, "child_table.txt"),
-		otctlCmdRouterTable:      readFixture(t, "router_table.txt"),
+		otctl.State.Key():           "leader",
+		otctl.NetworkName.Key():     testNetworkName,
+		otctl.ExtAddr.Key():         "1122334455667788",
+		otctl.PanID.Key():           "0x1234",
+		otctl.Channel.Key():         "15",
+		otctl.Rloc16.Key():          "0xc000",
+		otctl.DatasetActive.Key():   activeDatasetHex,
+		otctl.IPAddr.Key():          "fd00::1",
+		otctl.Counters.Key():        "MacTxUnique=1",
+		otctl.NeighborTable.Key():   readFixture(t, "neighbor_table.txt"),
+		otctl.ChildTable.Key():      readFixture(t, "child_table.txt"),
+		otctl.RouterTable.Key():     readFixture(t, "router_table.txt"),
 	}
 
 	return func(_ context.Context, args ...string) (string, error) {
-		key := strings.Join(args, " ")
+		key := otctl.Command{Args: args}.Key()
 		if val, ok := fixtures[key]; ok {
 			return val, nil
 		}
-		return "", context.Canceled
+		return "", fmt.Errorf("unknown command: %s", key)
 	}
+}
+
+func readFixture(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join("testdata", name)
+	//nolint:gosec // G304: reads fixed test fixture names under testdata/
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", name, err)
+	}
+	return string(b)
 }

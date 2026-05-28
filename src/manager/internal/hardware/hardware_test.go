@@ -38,11 +38,61 @@ func TestTargetSignaturesExist(t *testing.T) {
 }
 
 func TestDiscoverRadioMock(t *testing.T) {
-	path, err := DiscoverRadio(true)
+	path, baud, flow, err := DiscoverRadio(true)
 	if err != nil {
 		t.Fatalf("DiscoverRadio in mock mode failed: %v", err)
 	}
 	if path != "/dev/ttyMOCK0" {
 		t.Errorf("Expected mock path /dev/ttyMOCK0, got %s", path)
+	}
+	if baud != 460800 {
+		t.Errorf("Expected mock baudrate 460800, got %d", baud)
+	}
+	if flow {
+		t.Errorf("Expected mock flow control false, got %t", flow)
+	}
+}
+
+func TestGetBaudrateFromHardwareName(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected int
+	}{
+		{"usb-silabs-zbt-1-if00", 460800},
+		{"usb-sonoff_zigbee_3.0_usb_dongle_plus-if00", 460800},
+		{"usb-nordic_semiconductor_nrf52840-if00", 115200},
+		{"usb-ftdi_ft232r-if00", 115200},
+		{"usb-ch340-if00", 115200},
+		{"usb-cp2102-if00", 460800},
+		{"usb-generic_adapter-if00", 0},
+		{"something_random", 0},
+	}
+
+	for _, tt := range tests {
+		result := getBaudrateFromHardwareName(tt.name)
+		if result != tt.expected {
+			t.Errorf("getBaudrateFromHardwareName(%q) = %d; want %d", tt.name, result, tt.expected)
+		}
+	}
+}
+
+func TestGetFlowControlFromHardwareName(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"usb-silabs-zbt-1-if00", true},
+		{"usb-home_assistant_skyconnect-if00", true},
+		{"usb-nordic_semiconductor_nrf52840-if00", false},
+		{"usb-ftdi_ft232r-if00", false},
+		{"usb-ch340-if00", false},
+		{"something_random", false},
+	}
+
+	for _, tt := range tests {
+		result := getFlowControlFromHardwareName(tt.name)
+		if result != tt.expected {
+			t.Errorf("getFlowControlFromHardwareName(%q) = %t; want %t", tt.name, result, tt.expected)
+		}
 	}
 }

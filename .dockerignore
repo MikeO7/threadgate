@@ -1,11 +1,42 @@
+# Version control & CI
 .git
-.gitignore
 .github
+.gitignore
+
+# Docs & project metadata (not used in image build)
 *.md
+docs/
+LICENSE
+
+# Local dev tooling
 .gemini
-data/
+.pre-commit-config.yaml
+.golangci.yml
+.editorconfig
+Makefile
+docker-compose.yml
+scripts/
+
+# Build outputs
 threadgate
+src/manager/manager
+
+# Test & coverage (not compiled into the binary)
 coverage.out
+coverage.html
+*.test
+**/*_test.go
+**/testdata/
+
+# Local runtime & secrets
+data/
+.env
+.env.*
+
+# OS & editors
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
+*.swp
+*~

@@ -9,25 +9,35 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
 // Server handles REST API and diagnostic web requests.
 type Server struct {
-	port     int
-	mockMode bool
-	stateDir string
-	threads  ThreadAPI
-	srv      *http.Server
+	port           int
+	mockMode       bool
+	threads        *ThreadService
+	backup         *BackupStore
+	srv            *http.Server
+	statusReporter runtime.Reporter
 }
 
-// NewServer creates a server wired to the given ThreadAPI.
-func NewServer(port int, threads ThreadAPI, mockMode bool, stateDir string) *Server {
-	return &Server{port: port, threads: threads, mockMode: mockMode, stateDir: stateDir}
+// NewServer creates a server wired to the given ThreadService.
+func NewServer(port int, threads *ThreadService, mockMode bool, stateDir string, statusReporter runtime.Reporter) *Server {
+	return &Server{
+		port:           port,
+		threads:        threads,
+		mockMode:       mockMode,
+		backup:         NewBackupStore(threads, stateDir),
+		statusReporter: statusReporter,
+	}
 }
 
 // NewServerWithOtCtl is a convenience constructor for tests and wiring.
 func NewServerWithOtCtl(port int, otctl OtCtl, mockMode bool) *Server {
-	return NewServer(port, NewThreadService(otctl, CollectBestEffort), mockMode, "")
+	return NewServer(port, NewThreadService(otctl, CollectBestEffort), mockMode, "", nil)
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
@@ -36,6 +46,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		handler http.HandlerFunc
 	}{
 		{"/api/node", s.handleNodeInfo},
+		{"/api/health", s.handleHealth},
 		{"/node/dataset/active", s.handleActiveDataset},
 		{"/api/node/dataset/active", s.handleActiveDataset},
 		{"/node/dataset/pending", s.handlePendingDataset},
@@ -91,6 +102,20 @@ func (s *Server) handleNodeInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		log.Printf("[API Server] Failed to encode response: %v\n", err)
+	}
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.statusReporter == nil {
+		_ = json.NewEncoder(w).Encode(struct {
+			Status string `json:"status"`
+		}{Status: "unknown"})
+		return
+	}
+	status := s.statusReporter.GetStatus()
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		log.Printf("[API Server] Failed to encode health: %v\n", err)
 	}
 }
 
@@ -212,7 +237,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[API Server] Dashboard snapshot partial: %v\n", err)
 	}
 
-	view := snap.DashboardView(s.port, s.mockMode)
+	view := NewDashboardView(snap, s.port, s.mockMode)
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {
 		log.Printf("[API Server] Failed to execute template: %v\n", err)
@@ -220,6 +245,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // RunSnapshot is a test helper that builds a snapshot with a timeout context.
-func RunSnapshot(ctx context.Context, threads ThreadAPI) (Snapshot, error) {
+func RunSnapshot(ctx context.Context, threads *ThreadService) (topology.Snapshot, error) {
 	return threads.BuildSnapshot(ctx)
 }

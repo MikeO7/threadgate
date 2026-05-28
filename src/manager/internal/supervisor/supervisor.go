@@ -6,31 +6,37 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/radio"
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
+
+// mockAgentSleep controls how long the simulated otbr-agent loop waits (overridable in tests).
+var mockAgentSleep = 10 * time.Minute
 
 // Supervisor monitors and controls DBus, Avahi, and the C++ otbr-agent process.
 type Supervisor struct {
-	radioURL   string
-	stateDir   string
-	logLevel   string
-	backboneIF string
-	mockMode   bool
+	cfg      *config.Config
+	radio    radio.Binder
+	status   *runtime.Tracker
+	launcher ProcessLauncher
+
 	cancelFunc context.CancelFunc
 	ctx        context.Context
 }
 
 // New creates a new supervisor instance.
-func New(radioURL, stateDir, logLevel string, mode config.RuntimeMode, backboneIF string) *Supervisor {
+func New(cfg *config.Config, radio radio.Binder, status *runtime.Tracker, launcher ProcessLauncher) *Supervisor {
+	if launcher == nil {
+		launcher = ExecLauncher{}
+	}
 	return &Supervisor{
-		radioURL:   radioURL,
-		stateDir:   stateDir,
-		logLevel:   logLevel,
-		backboneIF: backboneIF,
-		mockMode:   mode.IsMock(),
+		cfg:      cfg,
+		radio:    radio,
+		status:   status,
+		launcher: launcher,
 	}
 }
 
@@ -40,13 +46,13 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	log.Println("[Supervisor] Bootstrapping system daemons...")
 
-	if s.mockMode {
+	if s.cfg.Runtime.IsMock() {
 		log.Println("[Supervisor] Mock mode active: starting simulated system daemons...")
+		s.setAgentStatus("mock", "")
 		go s.runMockAgentLoop()
 		return nil
 	}
 
-	// 1. Ensure DBus system directories exist inside container
 	if err := os.MkdirAll("/run/dbus", 0750); err != nil {
 		log.Printf("[Supervisor] Warning: failed to create /run/dbus: %v\n", err)
 	}
@@ -54,12 +60,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		log.Printf("[Supervisor] Warning: failed to create /var/run/dbus: %v\n", err)
 	}
 
-	// Clean up any stale dbus pids
 	_ = os.Remove("/run/dbus/pid")
 	_ = os.Remove("/var/run/dbus/pid")
 
-	// 2. Spawn dbus-daemon
-	dbusCmd := exec.CommandContext(s.ctx, "dbus-daemon", "--system", "--nofork", "--nopidfile")
+	dbusCmd := s.launcher.CommandContext(s.ctx, "dbus-daemon", "--system", "--nofork", "--nopidfile")
 	dbusCmd.Stdout = os.Stdout
 	dbusCmd.Stderr = os.Stderr
 	if err := dbusCmd.Start(); err != nil {
@@ -67,30 +71,36 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 	log.Println("[Supervisor] dbus-daemon launched successfully.")
 
-	// Give DBus a moment to initialize the socket
 	time.Sleep(1 * time.Second)
 
-	// 3. Spawn avahi-daemon (optional, handle missing gracefully)
 	s.startAvahi()
 
-	// 4. Spawn otbr-agent in a supervision loop
 	go s.runAgentLoop()
 
 	return nil
+}
+
+func (s *Supervisor) setAgentStatus(state, lastErr string) {
+	if s.status != nil {
+		s.status.UpdateAgent(state, lastErr)
+	}
 }
 
 func (s *Supervisor) runMockAgentLoop() {
 	for {
 		select {
 		case <-s.ctx.Done():
+			s.setAgentStatus("stopped", "")
 			return
 		default:
+			s.setAgentStatus("mock", "")
 			log.Println("[Supervisor] Launching simulated otbr-agent...")
 			select {
 			case <-s.ctx.Done():
 				log.Println("[Supervisor] Simulated otbr-agent exited cleanly.")
+				s.setAgentStatus("stopped", "")
 				return
-			case <-time.After(10 * time.Minute):
+			case <-time.After(mockAgentSleep):
 			}
 		}
 	}
@@ -99,17 +109,16 @@ func (s *Supervisor) runMockAgentLoop() {
 // Stop cleanly terminates all monitored daemons
 func (s *Supervisor) Stop() {
 	log.Println("[Supervisor] Initiating graceful shutdown of all processes...")
+	s.setAgentStatus("stopped", "")
 	if s.cancelFunc != nil {
 		s.cancelFunc()
 	}
-	// Give subprocesses time to clean up
 	time.Sleep(2 * time.Second)
 }
 
 func (s *Supervisor) startAvahi() {
-	// Clean up any stale avahi socket
 	_ = os.Remove("/var/run/avahi-daemon/pid")
-	avCmd := exec.CommandContext(s.ctx, "avahi-daemon", "--no-chroot")
+	avCmd := s.launcher.CommandContext(s.ctx, "avahi-daemon", "--no-chroot")
 	avCmd.Stdout = os.Stdout
 	avCmd.Stderr = os.Stderr
 
@@ -131,30 +140,36 @@ func (s *Supervisor) runAgentLoop() {
 	}
 }
 
-// runAgentOnce executes a single run of the otbr-agent process and manages its lifecycle.
 func (s *Supervisor) runAgentOnce() {
-	log.Printf("[Supervisor] Launching otbr-agent with Radio: %s\n", s.radioURL)
+	targetURL := s.radio.CurrentSpinelURL()
+	if s.cfg.AutoDiscover {
+		if err := s.radio.Refresh(); err != nil {
+			log.Printf("[Supervisor] Re-discovery failed: %v. Falling back to last known URL: %s\n", err, targetURL)
+		} else {
+			targetURL = s.radio.CurrentSpinelURL()
+			log.Printf("[Supervisor] Dynamically resolved/re-discovered radio URL: %s\n", targetURL)
+		}
+	}
 
-	// Build arguments for the C++ otbr-agent
-	// -I wpan0: Bind to interface wpan0
-	// -B: Backbone interface for border routing
+	log.Printf("[Supervisor] Launching otbr-agent with Radio: %s\n", targetURL)
+
 	args := []string{"-I", "wpan0"}
-	if s.backboneIF != "" {
-		args = append(args, "-B", s.backboneIF)
+	if s.cfg.BackboneIF != "" {
+		args = append(args, "-B", s.cfg.BackboneIF)
 	} else {
 		args = append(args, "-B")
 	}
+	args = append(args, targetURL)
 
-	// Append target radio URL
-	args = append(args, s.radioURL)
+	s.setAgentStatus("running", "")
 
-	agentCmd := exec.CommandContext(s.ctx, "otbr-agent", args...)
+	agentCmd := s.launcher.CommandContext(s.ctx, "otbr-agent", args...)
 	agentCmd.Stdout = os.Stdout
 	agentCmd.Stderr = os.Stderr
 
-	// exec.CommandContext automatically handles signaling child processes on context cancellation.
-
 	if err := agentCmd.Start(); err != nil {
+		errMsg := err.Error()
+		s.setAgentStatus("restarting", errMsg)
 		log.Printf("[Supervisor] Error starting otbr-agent: %v. Retrying in 5 seconds...\n", err)
 		time.Sleep(5 * time.Second)
 		return
@@ -162,17 +177,19 @@ func (s *Supervisor) runAgentOnce() {
 
 	log.Println("[Supervisor] otbr-agent process started successfully.")
 
-	// Wait for the agent to exit
 	err := agentCmd.Wait()
 	if err != nil {
+		errMsg := err.Error()
+		s.setAgentStatus("restarting", errMsg)
 		log.Printf("[Supervisor] Warning: otbr-agent exited with error: %v\n", err)
 	} else {
+		s.setAgentStatus("restarting", "")
 		log.Println("[Supervisor] otbr-agent exited cleanly.")
 	}
 
-	// Self-healing: if we are not shutting down, retry launching the process
 	select {
 	case <-s.ctx.Done():
+		s.setAgentStatus("stopped", "")
 		return
 	default:
 		log.Println("[Supervisor] Self-healing trigger: restarting otbr-agent in 3 seconds...")

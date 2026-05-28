@@ -3,11 +3,13 @@ package api
 import (
 	"encoding/json"
 	"html/template"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/api/topology"
 )
 
 // DashboardView adds presentation fields for SSR dashboard rendering.
 type DashboardView struct {
-	Snapshot
+	topology.Snapshot
 	Port         int
 	MockMode     bool
 	CSS          template.CSS
@@ -16,21 +18,21 @@ type DashboardView struct {
 }
 
 // DashboardView builds the SSR template model for the dashboard.
-func (s Snapshot) DashboardView(port int, mockMode bool) DashboardView {
-	topologyJSON, _ := s.MarshalTopologyJSON()
+func NewDashboardView(snap topology.Snapshot, port int, mockMode bool) DashboardView {
+	topologyJSON, _ := MarshalTopologyJSON(snap)
 	return DashboardView{
-		Snapshot:   s,
-		Port:       port,
-		MockMode:   mockMode,
-		CSS:        template.CSS(dashboardCSS),          //nolint:gosec // G203: embedded static stylesheet
-		TopologyJS: template.JS(dashboardTopologyJS),    //nolint:gosec // G203: embedded static script
+		Snapshot:     snap,
+		Port:         port,
+		MockMode:     mockMode,
+		CSS:          template.CSS(dashboardCSS),       //nolint:gosec // G203: embedded static stylesheet
+		TopologyJS:   template.JS(dashboardTopologyJS), //nolint:gosec // G203: embedded static script
 		TopologyJSON: topologyJSON,
 	}
 }
 
 // MarshalTopologyJSON serializes topology data embedded in the dashboard script tag.
-func (s Snapshot) MarshalTopologyJSON() (template.JS, error) {
-	b, err := json.Marshal(s)
+func MarshalTopologyJSON(snap topology.Snapshot) (template.JS, error) {
+	b, err := json.Marshal(snap)
 	if err != nil {
 		return "", err
 	}

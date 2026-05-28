@@ -1,10 +1,12 @@
-package api
+package topology
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+const testGatewayKey = "c000"
 
 func TestParseNeighborPipeTableGolden(t *testing.T) {
 	raw := readFixture(t, "neighbor_table.txt")
@@ -43,7 +45,7 @@ func TestParseRouterPipeTableGolden(t *testing.T) {
 }
 
 func TestBuildSnapshotFromTablesGolden(t *testing.T) {
-	snap := BuildSnapshotFromTables(
+	snap := BuildFromTables(
 		"0xc000",
 		readFixture(t, "neighbor_table.txt"),
 		readFixture(t, "child_table.txt"),
@@ -64,7 +66,7 @@ func TestBuildSnapshotFromTablesGolden(t *testing.T) {
 }
 
 func TestBuildTrafficPathGolden(t *testing.T) {
-	snap := BuildSnapshotFromTables(
+	snap := BuildFromTables(
 		"0xc000",
 		readFixture(t, "neighbor_table.txt"),
 		readFixture(t, "child_table.txt"),
