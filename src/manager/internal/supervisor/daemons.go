@@ -62,4 +62,3 @@ func (r *processRegistry) stopAll(grace time.Duration) {
 		}
 	}
 }
-
