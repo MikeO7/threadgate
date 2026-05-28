@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+*.md
+.gemini
+data/
+threadgate
+coverage.out
+.DS_Store
+.vscode/
+.idea/

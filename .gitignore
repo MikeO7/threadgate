@@ -1,0 +1,6 @@
+# Built manager binary — build with: make build
+/threadgate
+
+# Test and local runtime artifacts
+coverage.out
+data/

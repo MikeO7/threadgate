@@ -1,0 +1,32 @@
+name: Go Dependency Submission
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/manager/go.mod'
+      - 'src/manager/go.sum'
+      - '**.go'
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go Environment
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.10'
+          cache: true
+          cache-dependency-path: src/manager/go.sum
+
+      - name: Submit Dependencies
+        uses: actions/go-dependency-submission@v2
+        with:
+          go-mod-path: src/manager/go.mod
+          go-build-target: src/manager/main.go

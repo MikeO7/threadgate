@@ -1,0 +1,85 @@
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: true
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - errcheck
+    - forbidigo
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosec
+    - govet
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilnil
+    - noctx
+    - nolintlint
+    - predeclared
+    - revive
+    - staticcheck
+    - unused
+    - whitespace
+  settings:
+    funlen:
+      lines: 60
+      statements: 35
+      ignore-comments: true
+    gocognit:
+      min-complexity: 12
+    gocyclo:
+      min-complexity: 10
+    gosec:
+      severity: low
+      confidence: low
+    nestif:
+      min-complexity: 3
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: file-length-limit
+          arguments:
+            - max: 300
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreadGate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Share+Tech+Mono&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>{{.CSS}}</style>
+</head>
+<body>
+    <div id="tooltip"></div>
+    <div class="app-shell">
+    <header>
+        <div class="logo-group">
+            <div class="logo-indicator"></div>
+            <h1>ThreadGate</h1>
+        </div>
+        <div class="status-badge">
+            <span class="pulse"></span>
+            Operational
+        </div>
+    </header>
+
+    {{if .Warnings}}
+    <div style="max-width:1400px;margin:0 auto 1rem;padding:0.75rem 1rem;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);border-radius:12px;color:#fbbf24;font-family:var(--font-mono);font-size:0.85rem;">
+        Partial snapshot — {{len .Warnings}} ot-ctl warning(s): {{index .Warnings 0}}
+    </div>
+    {{end}}
+
+    <div class="tabs-nav">
+        <button id="btn-map" class="tab-btn active" onclick="switchTab('map')">Mesh Map</button>
+        <button id="btn-details" class="tab-btn" onclick="switchTab('details')">Network Details</button>
+        <button id="btn-logs" class="tab-btn" onclick="switchTab('logs')">Event Logs</button>
+    </div>
+
+    <!-- Tab 1: Full-screen mesh topology -->
+    <div id="map-tab" class="tab-content active">
+        <div class="map-panel">
+            <div class="card col-12 topology-card map-card" style="position: relative;">
+                <h2>Thread Mesh Map <span class="tab-subtitle">// {{len .Neighbors}} nodes · {{len .MeshLinks}} relationships</span></h2>
+                <div class="map-toolbar">
+                    <div class="map-view-toggle">
+                        <button id="btn-view-star" class="view-btn" type="button">Star View</button>
+                        <button id="btn-view-route" class="view-btn active" type="button">Route View</button>
+                    </div>
+                    <div class="map-view-toggle">
+                        <button id="btn-traffic" class="view-btn active" type="button">Traffic On</button>
+                    </div>
+                </div>
+                <div id="legend-star" class="map-legend hidden">
+                    <span class="legend-item"><span class="legend-line direct"></span>OTBR to node (star topology)</span>
+                    <span class="legend-item"><span style="color: var(--text-muted);">All nodes shown as direct neighbors of the gateway</span></span>
+                </div>
+                <div id="legend-route" class="map-legend">
+                    <span class="legend-item"><span class="legend-line direct"></span>Direct RF (hop 0)</span>
+                    <span class="legend-item"><span class="legend-line child"></span>Child link</span>
+                    <span class="legend-item"><span class="legend-line route"></span>Route tree edge</span>
+                    <span class="legend-item"><span style="color: var(--text-muted);">One parent link per node · hover to trace path</span></span>
+                </div>
+                <canvas id="topologyCanvas" class="topology-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Network diagnostics and configuration -->
+    <div id="details-tab" class="tab-content">
+        <main>
+            <!-- Card 1: Network Status -->
+            <div class="card col-4">
+                <h2>Network Status</h2>
+                <div class="metric-row">
+                    <span class="metric-label">Thread Role</span>
+                    <span class="metric-value" style="color: #a78bfa;">{{.State}}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Network Name</span>
+                    <span class="metric-value" style="color: #67e8f9;">{{.NetworkName}}</span>
+                </div>
+                <div class="metric-row" style="align-items: center;">
+                    <span class="metric-label">Active Channel</span>
+                    <select id="channel-select" onchange="updateChannel(this.value)" style="background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; outline: none; transition: border-color 0.15s ease-in-out;">
+                        <option value="11" {{if eq .Channel "11"}}selected{{end}}>11</option>
+                        <option value="12" {{if eq .Channel "12"}}selected{{end}}>12</option>
+                        <option value="13" {{if eq .Channel "13"}}selected{{end}}>13</option>
+                        <option value="14" {{if eq .Channel "14"}}selected{{end}}>14</option>
+                        <option value="15" {{if eq .Channel "15"}}selected{{end}}>15</option>
+                        <option value="16" {{if eq .Channel "16"}}selected{{end}}>16</option>
+                        <option value="17" {{if eq .Channel "17"}}selected{{end}}>17</option>
+                        <option value="18" {{if eq .Channel "18"}}selected{{end}}>18</option>
+                        <option value="19" {{if eq .Channel "19"}}selected{{end}}>19</option>
+                        <option value="20" {{if eq .Channel "20"}}selected{{end}}>20</option>
+                        <option value="21" {{if eq .Channel "21"}}selected{{end}}>21</option>
+                        <option value="22" {{if eq .Channel "22"}}selected{{end}}>22</option>
+                        <option value="23" {{if eq .Channel "23"}}selected{{end}}>23</option>
+                        <option value="24" {{if eq .Channel "24"}}selected{{end}}>24</option>
+                        <option value="25" {{if eq .Channel "25"}}selected{{end}}>25</option>
+                        <option value="26" {{if eq .Channel "26"}}selected{{end}}>26</option>
+                    </select>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Pan ID</span>
+                    <span class="metric-value">0x{{.PanID}}</span>
+                </div>
+
+                <button id="btn-scan-channels" onclick="scanAndRecommendChannels()" class="action-btn" style="width: 100%; margin-top: 1.25rem; padding: 0.6rem; background: var(--accent-purple); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-weight: 500; font-size: 0.8rem; transition: background 0.2s, opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.25);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    Scan & Recommend Channels
+                </button>
+
+                <div id="scan-recommendation-area" style="display: none; margin-top: 1rem; padding: 0.85rem; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
+                    <p style="font-size: 0.7rem; font-family: var(--font-display); margin-bottom: 0.35rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.75px; font-weight: 600;">Recommended Channel:</p>
+                    <div id="best-channel-badge" style="font-size: 1.15rem; font-weight: 700; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-family: var(--font-display);">
+                        Channel <span id="recommended-channel-num">15</span>
+                        <span id="recommended-channel-rating" style="font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.5px;">Excellent</span>
+                    </div>
+                    <p id="recommended-channel-text" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.85rem; line-height: 1.4; font-family: var(--font-body);"></p>
+
+                    <p style="font-size: 0.7rem; font-family: var(--font-display); margin-bottom: 0.4rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.75px; font-weight: 600; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.75rem;">Full Spectrum Interference:</p>
+                    <div id="scanned-channels-details" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; padding-right: 0.25rem;">
+                        <!-- Rows of scan results -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Hardware & API -->
+            <div class="card col-4">
+                <h2>Hardware Details</h2>
+                <div class="metric-row">
+                    <span class="metric-label">Extended MAC</span>
+                    <span class="metric-value">{{.ExtAddress}}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">RLOC16</span>
+                    <span class="metric-value">0x{{.Rloc16}}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">REST API Port</span>
+                    <span class="metric-value" style="color: var(--accent-cyan);">{{.Port}}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Operational Mode</span>
+                    <span class="metric-value">{{if .MockMode}}<span style="color: var(--warning-color)">Simulated (Mock)</span>{{else}}<span style="color: var(--success-color)">Hardware (Real)</span>{{end}}</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Performance Audit Counters -->
+            <div class="card col-4">
+                <h2>Packet Counters</h2>
+                <div class="table-wrapper" style="max-height: 190px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric Counter</th>
+                                <th style="text-align: right;">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .Counters}}
+                            <tr>
+                                <td style="color: var(--text-muted);">{{.Key}}</td>
+                                <td style="text-align: right; color: var(--success-color); font-weight: bold;">{{.Val}}</td>
+                            </tr>
+                            {{else}}
+                            <tr>
+                                <td colspan="2" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No operational statistics recorded</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card 5: Thread Neighbors Grid -->
+            <div class="card col-8">
+                <h2>Connected Neighbors ({{len .Neighbors}})</h2>
+                <div class="table-wrapper" style="max-height: 320px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Extended MAC Address</th>
+                                <th>RLOC16</th>
+                                <th style="text-align: right;">Link Quality (LQI)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .Neighbors}}
+                            <tr>
+                                <td>{{.ExtAddr}}</td>
+                                <td>{{.Rloc16}}</td>
+                                <td style="text-align: right;">
+                                    <span class="lqi-badge lqi-{{.LQI}}">LQI {{.LQI}}</span>
+                                </td>
+                            </tr>
+                            {{else}}
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-family: var(--font-display);">No active neighbor connections discovered</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card 6: Active Dataset Inspector & Provisioner -->
+            <div class="card col-4">
+                <h2>Dataset Management</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Active Thread Dataset TLV Hex:</p>
+                <div class="copy-container" style="margin-bottom: 1.5rem;">
+                    <div class="dataset-hex" id="tlvBlock">{{.ActiveDataset}}</div>
+                    <button class="copy-btn" onclick="copyDataset()">Copy</button>
+                </div>
+
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.2rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Backup &amp; Restore:</p>
+                <p style="font-size: 0.75rem; color: var(--warning-color); margin-bottom: 0.75rem; line-height: 1.4;">Backup files contain your network master key and credentials. Store them securely.</p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                    <button onclick="downloadBackup()" class="cyber-button secondary">Download Backup</button>
+                    <button onclick="saveBackupToDisk()" class="cyber-button secondary">Save to /data/backups</button>
+                    <input type="file" id="backupFileInput" accept=".json,application/json" style="display: none;" onchange="importBackupFile(event)" />
+                    <button onclick="document.getElementById('backupFileInput').click()" class="cyber-button">Import Backup File</button>
+                    <div id="backupStatus" style="font-size: 0.8rem; font-family: var(--font-display); text-align: center; font-weight: 600;"></div>
+                </div>
+
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.2rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Provision Network Credentials:</p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <input type="text" id="provisionHex" placeholder="Paste hex dataset TLV..." class="cyber-input" />
+                    <button onclick="provisionDataset()" class="cyber-button">Provision Dataset</button>
+                    <div id="provisionStatus" style="font-size: 0.8rem; font-family: var(--font-display); text-align: center; margin-top: 0.2rem; font-weight: 600;"></div>
+                </div>
+            </div>
+
+            <!-- Card 7: IPv6 Mesh Addresses -->
+            <div class="card col-12">
+                <h2>Assigned IPv6 Interface Addresses</h2>
+                <div class="chips-container">
+                    {{range .IPAddresses}}
+                    <span class="ip-chip">{{.}}</span>
+                    {{else}}
+                    <span style="color: var(--text-muted); font-family: var(--font-display);">No active IPv6 endpoints configured</span>
+                    {{end}}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Tab 3: System event log stream -->
+    <div id="logs-tab" class="tab-content">
+        <div class="terminal-container col-12">
+            <h2 style="font-family: var(--font-display); margin-bottom: 1.2rem; color: #a5b4fc; font-size: 1.25rem;">Event Logs</h2>
+            <div id="terminal">
+                <div style="color: #94a3b8;">[SYSTEM] Initializing ThreadGate Diagnostic Logger Console...</div>
+                <div style="color: #94a3b8;">[SYSTEM] Connection established on local socket {{.Port}}.</div>
+                <div style="color: #94a3b8;">[SYSTEM] Listening for active Thread mesh framework streams...</div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        function copyDataset() {
+            var text = document.getElementById("tlvBlock").innerText;
+            navigator.clipboard.writeText(text).then(function() {
+                var btn = document.querySelector(".copy-btn");
+                btn.innerText = "COPIED!";
+                btn.style.background = "var(--success-color)";
+                btn.style.color = "#000";
+                setTimeout(function() {
+                    btn.innerText = "Copy";
+                    btn.style.background = "";
+                    btn.style.color = "";
+                }, 2000);
+            });
+        }
+
+        function setBackupStatus(color, text) {
+            var statusDiv = document.getElementById("backupStatus");
+            statusDiv.style.color = color;
+            statusDiv.innerText = text;
+        }
+
+        function downloadBackup() {
+            setBackupStatus("var(--warning-color)", "EXPORTING BACKUP...");
+            fetch("/api/backup")
+                .then(function(res) {
+                    if (!res.ok) {
+                        return res.text().then(function(err) {
+                            throw new Error(err);
+                        });
+                    }
+                    var disposition = res.headers.get("Content-Disposition") || "";
+                    var match = disposition.match(/filename="([^"]+)"/);
+                    var filename = match ? match[1] : "threadgate-backup.json";
+                    return res.blob().then(function(blob) {
+                        return { blob: blob, filename: filename };
+                    });
+                })
+                .then(function(result) {
+                    var url = URL.createObjectURL(result.blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = result.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                    setBackupStatus("var(--success-color)", "BACKUP DOWNLOADED");
+                })
+                .catch(function(err) {
+                    setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+                });
+        }
+
+        function saveBackupToDisk() {
+            setBackupStatus("var(--warning-color)", "SAVING BACKUP TO DISK...");
+            fetch("/api/backup/save", { method: "POST" })
+                .then(function(res) {
+                    if (!res.ok) {
+                        return res.text().then(function(err) {
+                            throw new Error(err);
+                        });
+                    }
+                    return res.json();
+                })
+                .then(function(data) {
+                    setBackupStatus("var(--success-color)", "SAVED: " + (data.filename || "backup"));
+                })
+                .catch(function(err) {
+                    setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+                });
+        }
+
+        function importBackupFile(event) {
+            var file = event.target.files[0];
+            event.target.value = "";
+            if (!file) {
+                return;
+            }
+            setBackupStatus("var(--warning-color)", "IMPORTING BACKUP...");
+            file.text().then(function(text) {
+                return fetch("/api/backup/import", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: text
+                });
+            }).then(function(res) {
+                if (!res.ok) {
+                    return res.text().then(function(err) {
+                        throw new Error(err);
+                    });
+                }
+                setBackupStatus("var(--success-color)", "BACKUP IMPORTED! RELOADING...");
+                setTimeout(function() {
+                    location.reload();
+                }, 1500);
+            }).catch(function(err) {
+                setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+            });
+        }
+
+        function provisionDataset() {
+            var hex = document.getElementById("provisionHex").value.trim();
+            var statusDiv = document.getElementById("provisionStatus");
+            if (!hex) {
+                statusDiv.style.color = "var(--danger-color)";
+                statusDiv.innerText = "Please enter a valid hex dataset.";
+                return;
+            }
+            statusDiv.style.color = "var(--warning-color)";
+            statusDiv.innerText = "PROVISIONING NETWORK CREDENTIALS...";
+
+            fetch("/node/dataset/active", {
+                method: "PUT",
+                headers: { "Content-Type": "text/plain" },
+                body: hex
+            }).then(function(res) {
+                if (res.ok) {
+                    statusDiv.style.color = "var(--success-color)";
+                    statusDiv.innerText = "SUCCESSFULLY PROVISIONED! REBOOTING INTERFACE...";
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    res.text().then(function(err) {
+                        statusDiv.style.color = "var(--danger-color)";
+                        statusDiv.innerText = "ERROR: " + err;
+                    });
+                }
+            }).catch(function(err) {
+                statusDiv.style.color = "var(--danger-color)";
+                statusDiv.innerText = "CONNECTION FAILURE: " + err;
+            });
+        }
+
+        function updateChannel(chan) {
+            addLog(`<span style="color: #e11d48;">[SYSTEM]</span> Adjusting active Thread channel to ${chan}...`);
+            fetch("/api/node/channel", {
+                method: "PUT",
+                headers: { "Content-Type": "text/plain" },
+                body: chan
+            }).then(function(res) {
+                if (res.ok) {
+                    addLog(`<span style="color: #10b981;">[SYSTEM]</span> Successfully updated channel to ${chan}!`);
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    res.text().then(function(err) {
+                        addLog(`<span style="color: #ef4444;">[SYSTEM]</span> Error changing channel: ${err}`);
+                    });
+                }
+            }).catch(function(err) {
+                addLog(`<span style="color: #ef4444;">[SYSTEM]</span> Network connection failed: ${err}`);
+            });
+        }
+
+        function scanAndRecommendChannels() {
+            var btn = document.getElementById("btn-scan-channels");
+            var area = document.getElementById("scan-recommendation-area");
+            var details = document.getElementById("scanned-channels-details");
+            var bestNum = document.getElementById("recommended-channel-num");
+            var bestRating = document.getElementById("recommended-channel-rating");
+            var bestText = document.getElementById("recommended-channel-text");
+
+            addLog(`<span style="color: #a855f7;">[SCAN]</span> Initiating IEEE 802.15.4 Channel Energy Scan...`);
+            btn.disabled = true;
+            btn.innerText = "Scanning Channels (please wait)...";
+            btn.style.opacity = "0.7";
+
+            fetch("/api/node/channels/scan")
+                .then(function(res) {
+                    if (!res.ok) {
+                        throw new Error("HTTP error " + res.status);
+                    }
+                    return res.json();
+                })
+                .then(function(results) {
+                    btn.disabled = false;
+                    btn.innerText = "🔍 Scan & Recommend Best Channel";
+                    btn.style.opacity = "";
+
+                    if (!results || results.length === 0) {
+                        addLog(`<span style="color: #ef4444;">[SCAN]</span> Channel Scan returned no results.`);
+                        return;
+                    }
+
+                    addLog(`<span style="color: #10b981;">[SCAN]</span> Scan complete! Analyzing interference patterns...`);
+                    area.style.display = "block";
+
+                    // Sort results by RSSI ascending (most negative / lowest noise first)
+                    var sorted = [...results].sort(function(a, b) {
+                        return a.rssi - b.rssi;
+                    });
+
+                    var best = sorted[0];
+                    bestNum.innerText = best.channel;
+                    bestRating.innerText = best.rating;
+                    bestText.innerText = best.recommendation;
+
+                    // Set rating badge style and colors
+                    if (best.rating === "Excellent") {
+                        bestRating.style.background = "rgba(16, 185, 129, 0.1)";
+                        bestRating.style.color = "var(--success-color)";
+                    } else if (best.rating === "Good") {
+                        bestRating.style.background = "rgba(6, 182, 212, 0.1)";
+                        bestRating.style.color = "var(--accent-cyan)";
+                    } else if (best.rating === "Fair") {
+                        bestRating.style.background = "rgba(245, 158, 11, 0.1)";
+                        bestRating.style.color = "var(--warning-color)";
+                    } else {
+                        bestRating.style.background = "rgba(244, 63, 94, 0.1)";
+                        bestRating.style.color = "var(--danger-color)";
+                    }
+
+                    // Render list of all channels with color coding
+                    details.innerHTML = "";
+                    results.forEach(function(r) {
+                        var row = document.createElement("div");
+                        row.style.display = "flex";
+                        row.style.justifyContent = "space-between";
+                        row.style.padding = "0.2rem 0";
+                        row.style.borderBottom = "1px solid rgba(255,255,255,0.02)";
+
+                        var badgeColor = "var(--text-muted)";
+                        if (r.rating === "Excellent") badgeColor = "var(--success-color)";
+                        else if (r.rating === "Good") badgeColor = "var(--accent-cyan)";
+                        else if (r.rating === "Fair") badgeColor = "var(--warning-color)";
+                        else if (r.rating === "Poor") badgeColor = "var(--danger-color)";
+
+                        row.innerHTML = `
+                            <span style="color: var(--text-main); font-weight: 500;">Ch ${r.channel}</span>
+                            <span>RSSI: <strong style="color: ${badgeColor}; font-weight: 600;">${r.rssi} dBm</strong> <span style="font-size: 0.65rem; padding: 0.1rem 0.3rem; border-radius: 4px; background: rgba(255,255,255,0.03); color: ${badgeColor}; font-family: var(--font-body); text-transform: uppercase; margin-left: 0.25rem;">${r.rating}</span></span>
+                        `;
+                        details.appendChild(row);
+                    });
+
+                    addLog(`<span style="color: #a855f7;">[SCAN]</span> Recommendation: Channel ${best.channel} is the clearest frequency.`);
+                })
+                .catch(function(err) {
+                    btn.disabled = false;
+                    btn.innerText = "🔍 Scan & Recommend Best Channel";
+                    btn.style.opacity = "";
+                    addLog(`<span style="color: #ef4444;">[SCAN]</span> Scan failed: ${err.message}`);
+                });
+        }
+
+        // Tabs Switcher
+        function switchTab(tabName) {
+            document.querySelectorAll(".tab-content").forEach(function(el) {
+                el.classList.remove("active");
+            });
+            document.querySelectorAll(".tab-btn").forEach(function(el) {
+                el.classList.remove("active");
+            });
+
+            var tabIds = {
+                map: ["map-tab", "btn-map"],
+                details: ["details-tab", "btn-details"],
+                logs: ["logs-tab", "btn-logs"]
+            };
+            var ids = tabIds[tabName];
+            if (!ids) {
+                return;
+            }
+
+            document.getElementById(ids[0]).classList.add("active");
+            document.getElementById(ids[1]).classList.add("active");
+
+            if (tabName === "map" || tabName === "details") {
+                window.dispatchEvent(new Event("resize"));
+            }
+            if (tabName === "logs") {
+                var term = document.getElementById("terminal");
+                term.scrollTop = term.scrollHeight;
+            }
+        }
+
+        function addLog(msg) {
+            var term = document.getElementById("terminal");
+            var timeStr = new Date().toLocaleTimeString();
+            var line = document.createElement("div");
+            line.innerHTML = `<span style="color: #64748b;">[${timeStr}]</span> ${msg}`;
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+            if (term.childNodes.length > 100) {
+                term.removeChild(term.firstChild);
+            }
+        }
+
+        // Periodically inject interesting telemetry events for cyber activity
+        setInterval(function() {
+            var logEvents = [
+                "<span style='color: #06b6d4;'>[MDNS]</span> advertised border routing service _meshcop._udp via avahi-daemon",
+                "<span style='color: #8b5cf6;'>[DBUS]</span> synced dynamic routing tables with POSIX framework",
+                "<span style='color: #10b981;'>[AUDIT]</span> evaluated mesh link performance: partition is healthy",
+                "<span style='color: #06b6d4;'>[HASS]</span> synchronized system active topology map with Home Assistant integration",
+                "<span style='color: #a855f7;'>[DAEMON]</span> verified Border Router state: LEADER partition verified",
+                "<span style='color: #10b981;'>[HARDWARE]</span> scrutinized sysFS endpoints: zero interface friction detected"
+            ];
+            var randomEvent = logEvents[Math.floor(Math.random() * logEvents.length)];
+            addLog(randomEvent);
+        }, 10000);
+        window.__topology = {{.TopologyJSON}};
+    </script>
+    <script>
+{{.TopologyJS}}
+    </script>
+</body>
+</html>

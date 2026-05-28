@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+jobs:
+  # Lane 0: Pre-commit Hook Consistency
+  pre-commit:
+    name: Pre-commit Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.10'
+          cache: true
+          cache-dependency-path: src/manager/go.sum
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+  # Lane 1: High-speed Linting
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.10'
+          cache: true
+          cache-dependency-path: src/manager/go.sum
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: src/manager
+          args: --config ../../.golangci.yml
+
+  # Lane 2: Security Scan (GHAS Vulnerability Check)
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.10'
+          cache: true
+          cache-dependency-path: src/manager/go.sum
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          cd src/manager && govulncheck ./...
+
+  # Lane 3: Workflow Linting
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: actionlint
+        uses: reviewdog/action-actionlint@v1
+
+  # Lane 4: Test & Build
+  test-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.10'
+          cache: true
+          cache-dependency-path: src/manager/go.sum
+      - name: Run Unit Tests
+        working-directory: src/manager
+        run: |
+          go test -v -race -coverprofile=../../coverage.out ./...
+      - name: Upload Coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage.out
+      - name: Build Orchestrator Binary
+        working-directory: src/manager
+        run: |
+          CGO_ENABLED=0 go build -ldflags "-s -w" -o ../../threadgate main.go

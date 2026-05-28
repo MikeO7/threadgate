@@ -1,0 +1,3 @@
+| ID  | Rloc   | Timeout | Age | LQ In | LQ Out | Ravl | Extended Address     |
+| 27  | 0xc01b |       3 |  10 |     3 |      3 |   15 | 112233445566771b     |
+| 28  | 0xc01c |       3 |   8 |     2 |      2 |   12 | 112233445566771c     |
