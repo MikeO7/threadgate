@@ -14,7 +14,7 @@ func TestAuditHostSafety(t *testing.T) {
 func TestCheckSysctl(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "forwarding")
-	if err := os.WriteFile(path, []byte("1\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if !checkSysctl(path, "1") {

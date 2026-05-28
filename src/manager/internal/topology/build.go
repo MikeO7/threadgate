@@ -1,3 +1,4 @@
+// Package topology builds mesh graphs and traffic paths from ot-ctl tables.
 package topology
 
 import (

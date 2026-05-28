@@ -1,3 +1,4 @@
+// Package thread collects Thread network snapshots via ot-ctl.
 package thread
 
 import (

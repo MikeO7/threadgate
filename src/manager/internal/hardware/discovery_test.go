@@ -20,14 +20,14 @@ func TestDiscoverBySerialID(t *testing.T) {
 	withDiscoveryPaths(t, root)
 
 	byID := serialByIDDir
-	if err := os.MkdirAll(byID, 0o755); err != nil {
+	if err := os.MkdirAll(byID, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	target := filepath.Join(devDir, "ttyUSB0")
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(target, []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(target, []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	linkName := filepath.Join(byID, "usb-silabs-zbt-1-if00-port0")
@@ -69,20 +69,20 @@ func TestDiscoverBySysFS(t *testing.T) {
 	withDiscoveryPaths(t, root)
 
 	deviceDir := filepath.Join(sysUSBDevicesDir, "1-1")
-	if err := os.MkdirAll(deviceDir, 0o755); err != nil {
+	if err := os.MkdirAll(deviceDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(deviceDir, "idVendor"), []byte("10c4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(deviceDir, "idVendor"), []byte("10c4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(deviceDir, "idProduct"), []byte("ea60\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(deviceDir, "idProduct"), []byte("ea60\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	ttyDir := filepath.Join(deviceDir, "ttyUSB0")
-	if err := os.MkdirAll(ttyDir, 0o755); err != nil {
+	if err := os.MkdirAll(ttyDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(devDir, 0o755); err != nil {
+	if err := os.MkdirAll(devDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 
@@ -106,10 +106,10 @@ func TestDiscoverByTTY(t *testing.T) {
 	root := t.TempDir()
 	withDiscoveryPaths(t, root)
 
-	if err := os.MkdirAll(devDir, 0o755); err != nil {
+	if err := os.MkdirAll(devDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(devDir, "ttyACM0"), []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(devDir, "ttyACM0"), []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -137,14 +137,14 @@ func TestDiscoverRadioViaSerialID(t *testing.T) {
 	withDiscoveryPaths(t, root)
 
 	byID := serialByIDDir
-	if err := os.MkdirAll(byID, 0o755); err != nil {
+	if err := os.MkdirAll(byID, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	target := filepath.Join(devDir, "ttyUSB1")
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(target, []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(target, []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	linkName := filepath.Join(byID, "usb-cp2102-if00-port0")
@@ -186,10 +186,10 @@ func TestFindTTYNode(t *testing.T) {
 	withDiscoveryPaths(t, root)
 
 	usbPath := filepath.Join(sysUSBDevicesDir, "1-2")
-	if err := os.MkdirAll(filepath.Join(usbPath, "ttyACM1"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(usbPath, "ttyACM1"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(devDir, 0o755); err != nil {
+	if err := os.MkdirAll(devDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 
@@ -210,10 +210,10 @@ func TestDiscoverRadioViaTTY(t *testing.T) {
 	root := t.TempDir()
 	withDiscoveryPaths(t, root)
 
-	if err := os.MkdirAll(devDir, 0o755); err != nil {
+	if err := os.MkdirAll(devDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(devDir, "ttyUSB2"), []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(devDir, "ttyUSB2"), []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -232,10 +232,10 @@ func TestDiscoverRadioViaTTY(t *testing.T) {
 func TestDiscoverBySerialIDReadError(t *testing.T) {
 	root := t.TempDir()
 	withDiscoveryPaths(t, root)
-	if err := os.MkdirAll(serialByIDDir, 0o755); err != nil {
+	if err := os.MkdirAll(serialByIDDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(serialByIDDir, "not-a-dir"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(serialByIDDir, "not-a-dir"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -248,7 +248,7 @@ func TestDiscoverBySerialIDReadError(t *testing.T) {
 func TestDiscoverByTTYReadError(t *testing.T) {
 	root := t.TempDir()
 	withDiscoveryPaths(t, root)
-	if err := os.WriteFile(devDir, []byte("not-a-dir"), 0o644); err != nil {
+	if err := os.WriteFile(devDir, []byte("not-a-dir"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := discoverByTTY()
@@ -262,13 +262,13 @@ func TestInspectSysFSDeviceNoTTY(t *testing.T) {
 	withDiscoveryPaths(t, root)
 
 	deviceDir := filepath.Join(sysUSBDevicesDir, "2-2")
-	if err := os.MkdirAll(deviceDir, 0o755); err != nil {
+	if err := os.MkdirAll(deviceDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(deviceDir, "idVendor"), []byte("10c4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(deviceDir, "idVendor"), []byte("10c4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(deviceDir, "idProduct"), []byte("ea60\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(deviceDir, "idProduct"), []byte("ea60\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

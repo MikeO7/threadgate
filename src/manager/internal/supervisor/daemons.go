@@ -1,3 +1,4 @@
+// Package supervisor manages otbr-agent and supporting system daemons.
 package supervisor
 
 import (

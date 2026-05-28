@@ -145,35 +145,26 @@ func (m *Mock) Run(_ context.Context, args ...string) (string, error) {
 }
 
 func runMockCommand(state *mockStateData, cmd string) (string, error) {
-	switch cmd {
-	case otctl.State.Key():
-		return state.state, nil
-	case otctl.Rloc16.Key():
-		return state.rloc16, nil
-	case otctl.ExtAddr.Key():
-		return state.extaddr, nil
-	case otctl.NetworkName.Key():
-		return state.networkname, nil
-	case otctl.PanID.Key():
-		return state.panid, nil
-	case otctl.Channel.Key():
-		return state.channel, nil
-	case otctl.Counters.Key():
-		return state.counters, nil
-	case otctl.IPAddr.Key():
-		return state.ipaddr, nil
-	case otctl.NeighborTable.Key():
-		return state.neighborTable, nil
-	case otctl.ChildTable.Key():
-		return state.childTable, nil
-	case otctl.RouterTable.Key():
-		return state.routerTable, nil
-	case otctl.DatasetActive.Key():
-		return state.activeHex, nil
-	case otctl.DatasetPending.Key():
-		return state.pendingHex, nil
+	if getter, ok := mockStateGetters[cmd]; ok {
+		return getter(state), nil
 	}
 	return runMockDatasetCommand(state, cmd)
+}
+
+var mockStateGetters = map[string]func(*mockStateData) string{
+	otctl.State.Key():         func(s *mockStateData) string { return s.state },
+	otctl.Rloc16.Key():        func(s *mockStateData) string { return s.rloc16 },
+	otctl.ExtAddr.Key():       func(s *mockStateData) string { return s.extaddr },
+	otctl.NetworkName.Key():   func(s *mockStateData) string { return s.networkname },
+	otctl.PanID.Key():         func(s *mockStateData) string { return s.panid },
+	otctl.Channel.Key():       func(s *mockStateData) string { return s.channel },
+	otctl.Counters.Key():      func(s *mockStateData) string { return s.counters },
+	otctl.IPAddr.Key():        func(s *mockStateData) string { return s.ipaddr },
+	otctl.NeighborTable.Key(): func(s *mockStateData) string { return s.neighborTable },
+	otctl.ChildTable.Key():    func(s *mockStateData) string { return s.childTable },
+	otctl.RouterTable.Key():    func(s *mockStateData) string { return s.routerTable },
+	otctl.DatasetActive.Key(): func(s *mockStateData) string { return s.activeHex },
+	otctl.DatasetPending.Key(): func(s *mockStateData) string { return s.pendingHex },
 }
 
 func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {

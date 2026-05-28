@@ -29,7 +29,7 @@ func TestExtractTLVFromPayload(t *testing.T) {
 }
 
 func TestParseDatasetHex(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(`{"ActiveDatasetTlvs":"`+activeDatasetHex+`"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(`{"ActiveDatasetTlvs":"`+activeDatasetHex+`"}`))
 	got, err := parseDatasetHex(req)
 	if err != nil {
 		t.Fatalf("parseDatasetHex failed: %v", err)
@@ -38,7 +38,7 @@ func TestParseDatasetHex(t *testing.T) {
 		t.Errorf("got %q want %q", got, activeDatasetHex)
 	}
 
-	reqRaw := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(activeDatasetHex))
+	reqRaw := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(activeDatasetHex))
 	gotRaw, err := parseDatasetHex(reqRaw)
 	if err != nil {
 		t.Fatalf("parseDatasetHex raw failed: %v", err)
@@ -47,7 +47,7 @@ func TestParseDatasetHex(t *testing.T) {
 		t.Errorf("got %q want %q", gotRaw, activeDatasetHex)
 	}
 
-	reqEmpty := httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(nil))
+	reqEmpty := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", bytes.NewReader(nil))
 	if _, err := parseDatasetHex(reqEmpty); err == nil {
 		t.Error("expected error for empty body")
 	}

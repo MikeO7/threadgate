@@ -47,8 +47,8 @@ func TestDetectBackboneInterfaceListError(t *testing.T) {
 	}
 	t.Cleanup(func() { listInterfaces = old })
 
-	if got := detectBackboneInterface(); got != "eth0" {
-		t.Fatalf("expected eth0 fallback, got %q", got)
+	if got := detectBackboneInterface(); got != defaultBackboneInterface {
+		t.Fatalf("expected %s fallback, got %q", defaultBackboneInterface, got)
 	}
 }
 
@@ -62,8 +62,8 @@ func TestDetectBackboneInterfaceDefaultFallback(t *testing.T) {
 	}
 	t.Cleanup(func() { listInterfaces = old })
 
-	if got := detectBackboneInterface(); got != "eth0" {
-		t.Fatalf("expected eth0 fallback, got %q", got)
+	if got := detectBackboneInterface(); got != defaultBackboneInterface {
+		t.Fatalf("expected %s fallback, got %q", defaultBackboneInterface, got)
 	}
 }
 

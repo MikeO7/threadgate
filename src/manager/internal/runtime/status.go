@@ -1,3 +1,4 @@
+// Package runtime tracks orchestrator health and host audit state.
 package runtime
 
 import (

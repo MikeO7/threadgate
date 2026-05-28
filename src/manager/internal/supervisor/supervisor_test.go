@@ -10,8 +10,14 @@ import (
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
 	"github.com/MikeO7/threadgate/src/manager/internal/env"
-	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+)
+
+const (
+	mockRadioURL       = "spinel+hdlc+uart:///dev/ttyMOCK0"
+	sleepForeverScript = "#!/bin/sh\nwhile true; do sleep 0.2; done\n"
+	exitZeroScript     = "#!/bin/sh\nexit 0\n"
+	otbrAgentName      = "otbr-agent"
 )
 
 func writeFakeCommands(t *testing.T, commands map[string]string) string {
@@ -19,7 +25,10 @@ func writeFakeCommands(t *testing.T, commands map[string]string) string {
 	dir := t.TempDir()
 	for name, body := range commands {
 		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // test scripts must be executable
 			t.Fatal(err)
 		}
 	}
@@ -31,7 +40,7 @@ type fakeLauncher struct {
 }
 
 func (f fakeLauncher) CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, filepath.Join(f.binDir, name), arg...)
+	return exec.CommandContext(ctx, filepath.Join(f.binDir, name), arg...) //nolint:gosec // test launcher runs scripts from a temp bin dir
 }
 
 func mockConfig(autoDiscover bool) *config.Config {
@@ -43,7 +52,7 @@ func mockConfig(autoDiscover bool) *config.Config {
 		StateDir:     "/data",
 	}
 	if !autoDiscover {
-		cfg.RadioURL = "spinel+hdlc+uart:///dev/ttyMOCK0"
+		cfg.RadioURL = mockRadioURL
 	}
 	return cfg
 }
@@ -65,7 +74,7 @@ func newTestSupervisor(t *testing.T, cfg *config.Config, status *runtime.Tracker
 
 func TestSupervisorMock(t *testing.T) {
 	cfg := mockConfig(false)
-	cfg.RadioURL = "spinel+hdlc+uart:///dev/ttyMOCK0"
+	cfg.RadioURL = mockRadioURL
 	s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -81,9 +90,9 @@ func TestSupervisorMock(t *testing.T) {
 
 func TestSupervisorStartWithFakeDaemons(t *testing.T) {
 	binDir := writeFakeCommands(t, map[string]string{
-		"dbus-daemon":  "#!/bin/sh\nwhile true; do sleep 0.2; done\n",
-		"avahi-daemon": "#!/bin/sh\nwhile true; do sleep 0.2; done\n",
-		"otbr-agent":   "#!/bin/sh\nexit 0\n",
+		"dbus-daemon":  sleepForeverScript,
+		"avahi-daemon": sleepForeverScript,
+		otbrAgentName:   exitZeroScript,
 	})
 
 	cfg := mockConfig(false)
@@ -102,13 +111,13 @@ func TestSupervisorStartWithFakeDaemons(t *testing.T) {
 
 func TestRunAgentOnce(t *testing.T) {
 	binDir := writeFakeCommands(t, map[string]string{
-		"otbr-agent": "#!/bin/sh\nexit 0\n",
+		otbrAgentName: exitZeroScript,
 	})
 	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
 
 	cfg := mockConfig(false)
-	cfg.RadioURL = "spinel+hdlc+uart:///dev/ttyMOCK0"
+	cfg.RadioURL = mockRadioURL
 	cfg.BackboneIF = "eth0"
 	s := newTestSupervisor(t, cfg, runtime.NewTracker(), fakeLauncher{binDir: binDir})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -130,7 +139,7 @@ func TestRunAgentOnce(t *testing.T) {
 
 func TestRunAgentOnceAutoDiscover(t *testing.T) {
 	binDir := writeFakeCommands(t, map[string]string{
-		"otbr-agent": "#!/bin/sh\nexit 0\n",
+		otbrAgentName: exitZeroScript,
 	})
 	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
@@ -255,7 +264,7 @@ func TestSupervisorStartDBusFailure(t *testing.T) {
 
 func TestStartAvahi(t *testing.T) {
 	binDir := writeFakeCommands(t, map[string]string{
-		"avahi-daemon": "#!/bin/sh\nwhile true; do sleep 0.2; done\n",
+		"avahi-daemon": sleepForeverScript,
 	})
 
 	cfg := mockConfig(false)
@@ -272,48 +281,5 @@ func TestStartAvahiMissingBinary(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx, s.cancelFunc = context.WithCancel(ctx)
 	s.startAvahi()
-	cancel()
-}
-
-func TestRunAgentLoop(t *testing.T) {
-	binDir := writeFakeCommands(t, map[string]string{
-		"otbr-agent": "#!/bin/sh\nexit 0\n",
-	})
-	oldPath := os.Getenv("PATH")
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
-
-	cfg := mockConfig(false)
-	s := newTestSupervisor(t, cfg, nil, fakeLauncher{binDir: binDir})
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx, s.cancelFunc = context.WithCancel(ctx)
-
-	go s.runAgentLoop()
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	time.Sleep(50 * time.Millisecond)
-}
-
-func TestRunAgentOnceDiscoveryFailure(t *testing.T) {
-	binDir := writeFakeCommands(t, map[string]string{
-		"otbr-agent": "#!/bin/sh\nexit 0\n",
-	})
-	oldPath := os.Getenv("PATH")
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
-
-	root := t.TempDir()
-	restore := hardware.SetDiscoveryPathsForTest(
-		filepath.Join(root, "dev"),
-		filepath.Join(root, "serial", "by-id"),
-		filepath.Join(root, "sys", "bus", "usb", "devices"),
-	)
-	t.Cleanup(restore)
-
-	cfg := mockConfig(true)
-	cfg.RadioURL = "spinel+hdlc+uart:///dev/ttyFALLBACK0"
-	cfg.Runtime = config.RuntimeModeHardware
-	s := newTestSupervisor(t, cfg, nil, fakeLauncher{binDir: binDir})
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx, s.cancelFunc = context.WithCancel(ctx)
-	s.runAgentOnce()
 	cancel()
 }

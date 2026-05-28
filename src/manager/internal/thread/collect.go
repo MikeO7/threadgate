@@ -25,12 +25,6 @@ type cmdAssignment struct {
 	set func(string)
 }
 
-type cmdOutcome struct {
-	label string
-	value string
-	err   error
-}
-
 func (c *Client) runAssignments(ctx context.Context, policy Policy, assignments []cmdAssignment) ([]string, error) {
 	var warnings []string
 	var firstErr error
@@ -50,14 +44,22 @@ func (c *Client) runAssignments(ctx context.Context, policy Policy, assignments 
 		item.set(value)
 	}
 
+	return finalizeAssignments(policy, warnings, firstErr)
+}
+
+func finalizeAssignments(policy Policy, warnings []string, firstErr error) ([]string, error) {
 	sort.Strings(warnings)
-	if firstErr != nil && policy == PolicyBestEffort {
+	if firstErr == nil {
+		return warnings, nil
+	}
+	switch policy {
+	case PolicyBestEffort:
 		return warnings, fmt.Errorf("collection partial: %w", firstErr)
-	}
-	if firstErr != nil && policy == PolicyBackupExport {
+	case PolicyBackupExport:
 		return warnings, fmt.Errorf("backup metadata: %w", firstErr)
+	default:
+		return warnings, nil
 	}
-	return warnings, nil
 }
 
 func (c *Client) runRequired(ctx context.Context, cmd *otctl.Command, label string) (string, error) {

@@ -4,19 +4,27 @@ import (
 	"testing"
 )
 
+const (
+	hwSilabsZBT    = "usb-silabs-zbt-1-if00"
+	hwNordicNRF528 = "usb-nordic_semiconductor_nrf52840-if00"
+	hwFTDI         = "usb-ftdi_ft232r-if00"
+	hwCH340        = "usb-ch340-if00"
+	hwRandom       = "something_random"
+)
+
 func TestIsKnownHardwareName(t *testing.T) {
 	tests := []struct {
 		name     string
 		expected bool
 	}{
-		{"usb-silabs-zbt-1-if00", true},
+		{hwSilabsZBT, true},
 		{"usb-sonoff_zigbee_3.0_usb_dongle_plus-if00", true},
-		{"usb-nordic_semiconductor_nrf52840-if00", true},
-		{"usb-ftdi_ft232r-if00", true},
-		{"usb-ch340-if00", true},
+		{hwNordicNRF528, true},
+		{hwFTDI, true},
+		{hwCH340, true},
 		{"usb-cp2102-if00", true},
 		{"usb-generic_adapter-if00", false},
-		{"something_random", false},
+		{hwRandom, false},
 	}
 
 	for _, tt := range tests {

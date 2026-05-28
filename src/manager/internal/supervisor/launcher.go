@@ -14,5 +14,5 @@ type ProcessLauncher interface {
 type ExecLauncher struct{}
 
 func (ExecLauncher) CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, name, arg...)
+	return exec.CommandContext(ctx, name, arg...) //nolint:gosec // ProcessLauncher intentionally runs configured daemon binaries.
 }

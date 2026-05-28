@@ -90,4 +90,3 @@ type RoutingTree struct {
 	ChildrenOf map[string][]string           `json:"childrenOf"`
 	GatewayKey string                        `json:"gatewayKey"`
 }
-

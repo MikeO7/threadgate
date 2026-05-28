@@ -1,3 +1,4 @@
+// Package radio resolves Thread radio URLs, profiles, and hardware binding.
 package radio
 
 import (

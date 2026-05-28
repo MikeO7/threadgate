@@ -40,21 +40,37 @@ func TestParseSpinelURL(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		profile, ok := ParseSpinelURL(tt.url, tt.defaultBaud)
-		if ok != tt.expectedOk {
-			t.Errorf("ParseSpinelURL(%q) ok = %t, want %t", tt.url, ok, tt.expectedOk)
-		}
-		if ok {
-			if profile.DevicePath != tt.expectedPath {
-				t.Errorf("ParseSpinelURL(%q) DevicePath = %q, want %q", tt.url, profile.DevicePath, tt.expectedPath)
-			}
-			if profile.Baudrate != tt.expectedBaud {
-				t.Errorf("ParseSpinelURL(%q) Baudrate = %d, want %d", tt.url, profile.Baudrate, tt.expectedBaud)
-			}
-			if profile.FlowControl != tt.expectedFlow {
-				t.Errorf("ParseSpinelURL(%q) FlowControl = %t, want %t", tt.url, profile.FlowControl, tt.expectedFlow)
-			}
-		}
+		t.Run(tt.url, func(t *testing.T) {
+			profile, ok := ParseSpinelURL(tt.url, tt.defaultBaud)
+			assertParseSpinelURL(t, tt, profile, ok)
+		})
+	}
+}
+
+func assertParseSpinelURL(t *testing.T, tt struct {
+	url          string
+	defaultBaud  int
+	expectedPath string
+	expectedBaud int
+	expectedFlow bool
+	expectedOk   bool
+}, profile Profile, ok bool) {
+	t.Helper()
+	if ok != tt.expectedOk {
+		t.Errorf("ParseSpinelURL(%q) ok = %t, want %t", tt.url, ok, tt.expectedOk)
+		return
+	}
+	if !ok {
+		return
+	}
+	if profile.DevicePath != tt.expectedPath {
+		t.Errorf("ParseSpinelURL(%q) DevicePath = %q, want %q", tt.url, profile.DevicePath, tt.expectedPath)
+	}
+	if profile.Baudrate != tt.expectedBaud {
+		t.Errorf("ParseSpinelURL(%q) Baudrate = %d, want %d", tt.url, profile.Baudrate, tt.expectedBaud)
+	}
+	if profile.FlowControl != tt.expectedFlow {
+		t.Errorf("ParseSpinelURL(%q) FlowControl = %t, want %t", tt.url, profile.FlowControl, tt.expectedFlow)
 	}
 }
 

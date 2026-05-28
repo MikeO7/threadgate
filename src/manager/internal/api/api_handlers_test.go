@@ -16,7 +16,7 @@ import (
 
 func TestHandleNodeInfoWriteError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(mockNodeInfoOtCtl), false)
-	req := httptest.NewRequest(http.MethodGet, "/api/node", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/node", nil)
 	server.handleNodeInfo(&failResponseWriter{}, req)
 }
 
@@ -38,7 +38,7 @@ func TestGetActiveDatasetError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("dataset unavailable")
 	}), false)
-	req := httptest.NewRequest(http.MethodGet, "/node/dataset/active", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/dataset/active", nil)
 	rr := httptest.NewRecorder()
 	server.getActiveDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -50,7 +50,7 @@ func TestSetActiveDatasetServiceError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
 		return "", fmt.Errorf("commit failed")
 	}), false)
-	req := httptest.NewRequest(http.MethodPut, "/node/dataset/active", strings.NewReader(activeDatasetHex))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/active", strings.NewReader(activeDatasetHex))
 	rr := httptest.NewRecorder()
 	server.setActiveDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -62,7 +62,7 @@ func TestGetPendingDatasetError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("pending unavailable")
 	}), false)
-	req := httptest.NewRequest(http.MethodGet, "/node/dataset/pending", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/dataset/pending", nil)
 	rr := httptest.NewRecorder()
 	server.getPendingDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -72,7 +72,7 @@ func TestGetPendingDatasetError(t *testing.T) {
 
 func TestHandleBackupSaveNoStateDir(t *testing.T) {
 	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/backup/save", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)
 	if rr.Code != http.StatusServiceUnavailable {
@@ -83,7 +83,7 @@ func TestHandleBackupSaveNoStateDir(t *testing.T) {
 func TestHandleBackupFileMethodNotAllowed(t *testing.T) {
 	dir := t.TempDir()
 	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
-	req := httptest.NewRequest(http.MethodDelete, "/api/backup/files/test.json", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/api/backup/files/test.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFile(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
@@ -103,7 +103,7 @@ func TestHandleBackupFileRestoreValidationFailure(t *testing.T) {
 	}
 
 	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/backup/files/"+name, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
 	if rr.Code != http.StatusBadRequest {
@@ -113,7 +113,7 @@ func TestHandleBackupFileRestoreValidationFailure(t *testing.T) {
 
 func TestHandlePendingDatasetMethodNotAllowed(t *testing.T) {
 	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
-	req := httptest.NewRequest(http.MethodPost, "/node/dataset/pending", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/node/dataset/pending", nil)
 	rr := httptest.NewRecorder()
 	server.handlePendingDataset(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
@@ -125,7 +125,7 @@ func TestSetPendingDatasetServiceError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("pending commit failed")
 	}), false)
-	req := httptest.NewRequest(http.MethodPut, "/node/dataset/pending", strings.NewReader(pendingDatasetHex))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/pending", strings.NewReader(pendingDatasetHex))
 	rr := httptest.NewRecorder()
 	server.setPendingDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -137,7 +137,7 @@ func TestHandleDiagnosticsError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("diag failed")
 	}), false)
-	req := httptest.NewRequest(http.MethodGet, "/api/diagnostics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/diagnostics", nil)
 	rr := httptest.NewRecorder()
 	server.handleDiagnostics(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -152,7 +152,7 @@ func TestHandleTopologyPartialSnapshot(t *testing.T) {
 		}
 		return "ok", nil
 	}), false)
-	req := httptest.NewRequest(http.MethodGet, "/api/topology", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/topology", nil)
 	rr := httptest.NewRecorder()
 	server.handleTopology(rr, req)
 	if rr.Code != http.StatusOK {
@@ -164,7 +164,7 @@ func TestHandleBackupExportError(t *testing.T) {
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("export failed")
 	}), false)
-	req := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupExport(rr, req)
 	if rr.Code != http.StatusInternalServerError {
@@ -174,7 +174,7 @@ func TestHandleBackupExportError(t *testing.T) {
 
 func TestHandleBackupNotFoundRoute(t *testing.T) {
 	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
-	req := httptest.NewRequest(http.MethodGet, "/api/backup/unknown", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/unknown", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackup(rr, req)
 	if rr.Code != http.StatusNotFound {

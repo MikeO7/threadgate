@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/env"
@@ -22,6 +23,7 @@ type Server struct {
 	env            *env.Env
 	threads        *thread.Client
 	backup         *BackupStore
+	mu             sync.Mutex
 	srv            *http.Server
 	statusReporter runtime.Reporter
 }
@@ -80,23 +82,29 @@ func (s *Server) Handler() http.Handler {
 
 // Start launches the HTTP listener.
 func (s *Server) Start() error {
-	s.srv = &http.Server{
+	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
 		Handler:      s.Handler(),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
+	s.mu.Lock()
+	s.srv = srv
+	s.mu.Unlock()
 
 	log.Printf("[API Server] Exposing REST API and modern dashboard on port %d...\n", s.port)
-	return s.srv.ListenAndServe()
+	return srv.ListenAndServe()
 }
 
 // Shutdown gracefully stops the HTTP listener.
 func (s *Server) Shutdown(ctx context.Context) error {
-	if s.srv == nil {
+	s.mu.Lock()
+	srv := s.srv
+	s.mu.Unlock()
+	if srv == nil {
 		return nil
 	}
-	return s.srv.Shutdown(ctx)
+	return srv.Shutdown(ctx)
 }
 
 func (s *Server) handleNodeInfo(w http.ResponseWriter, r *http.Request) {

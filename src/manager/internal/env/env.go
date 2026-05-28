@@ -1,3 +1,4 @@
+// Package env is the composition root wiring config, radio, status, and Thread client.
 package env
 
 import (

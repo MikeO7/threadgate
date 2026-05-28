@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -32,7 +33,8 @@ func TestNewApp(t *testing.T) {
 }
 
 func TestFindAvailablePort(t *testing.T) {
-	ln, err := net.Listen("tcp", ":0")
+	lc := net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +77,8 @@ func TestRadioBindingMock(t *testing.T) {
 }
 
 func TestStartAPIServer(t *testing.T) {
-	ln, err := net.Listen("tcp", ":0")
+	lc := net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,11 +96,12 @@ func TestStartAPIServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
-	server, errChan := startAPIServer(runtimeEnv)
+	_, errChan := startAPIServer(runtimeEnv)
 
 	deadline := time.Now().Add(2 * time.Second)
+	var dialer net.Dialer
 	for time.Now().Before(deadline) {
-		conn, dialErr := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		conn, dialErr := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if dialErr == nil {
 			_ = conn.Close()
 			return
@@ -112,5 +116,4 @@ func TestStartAPIServer(t *testing.T) {
 		}
 	}
 	t.Fatal("API server did not become reachable")
-	_ = server
 }

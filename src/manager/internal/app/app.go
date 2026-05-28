@@ -1,3 +1,4 @@
+// Package app coordinates ThreadGate startup, shutdown, and the HTTP API lifecycle.
 package app
 
 import (
@@ -76,8 +77,9 @@ func (a *App) Run() error {
 }
 
 func findAvailablePort(startPort int) int {
+	lc := net.ListenConfig{}
 	for port := startPort; port < startPort+100; port++ {
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		ln, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", port))
 		if err == nil {
 			_ = ln.Close()
 			return port

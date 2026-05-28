@@ -23,6 +23,8 @@ type Config struct {
 	BackboneIF          string // Backbone interface for border routing (e.g. eth0, wlan0)
 }
 
+const defaultBackboneInterface = "eth0"
+
 // Load reads values from the environment or assigns safe defaults
 func Load() *Config {
 	mockMode := getEnvBool("OTBR_MOCK_MODE", false)
@@ -67,7 +69,7 @@ var listInterfaces = net.Interfaces
 func detectBackboneInterface() string {
 	ifaces, err := listInterfaces()
 	if err != nil {
-		return "eth0"
+		return defaultBackboneInterface
 	}
 	for _, iface := range ifaces {
 		// Skip loopback, down interfaces, or virtual mesh interface
@@ -80,7 +82,7 @@ func detectBackboneInterface() string {
 		}
 		return iface.Name
 	}
-	return "eth0"
+	return defaultBackboneInterface
 }
 
 func getEnv(key, defaultVal string) string {

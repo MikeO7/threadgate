@@ -1,3 +1,4 @@
+// Package otctl defines canonical ot-ctl command descriptors used across ThreadGate.
 package otctl
 
 import "strings"
@@ -29,6 +30,13 @@ const (
 	LabelCounters      = "counters"
 )
 
+const (
+	subArgTable   = "table"
+	subArgActive  = "active"
+	subArgPending = "pending"
+	subArgDataset = "dataset"
+)
+
 var (
 	State       = Command{Label: LabelState, Args: []string{"state"}}
 	NetworkName = Command{Label: LabelNetworkName, Args: []string{"networkname"}}
@@ -39,16 +47,16 @@ var (
 	Counters    = Command{Label: LabelCounters, Args: []string{"counters"}}
 	IPAddr      = Command{Label: LabelIPAddr, Args: []string{"ipaddr"}}
 
-	NeighborTable = Command{Label: LabelNeighborTable, Args: []string{"neighbor", "table"}}
-	ChildTable    = Command{Label: LabelChildTable, Args: []string{"child", "table"}}
-	RouterTable   = Command{Label: LabelRouterTable, Args: []string{"router", "table"}}
+	NeighborTable = Command{Label: LabelNeighborTable, Args: []string{"neighbor", subArgTable}}
+	ChildTable    = Command{Label: LabelChildTable, Args: []string{"child", subArgTable}}
+	RouterTable   = Command{Label: LabelRouterTable, Args: []string{"router", subArgTable}}
 
-	DatasetActive         = Command{Label: LabelDataset, Args: []string{"dataset", "active", "-x"}}
-	DatasetPending        = Command{Args: []string{"dataset", "pending", "-x"}}
-	DatasetSetActive      = Command{Args: []string{"dataset", "set", "active"}}
-	DatasetCommitActive   = Command{Args: []string{"dataset", "commit", "active"}}
-	DatasetSetPending     = Command{Args: []string{"dataset", "set", "pending"}}
-	DatasetCommitPending  = Command{Args: []string{"dataset", "commit", "pending"}}
+	DatasetActive         = Command{Label: LabelDataset, Args: []string{subArgDataset, subArgActive, "-x"}}
+	DatasetPending        = Command{Args: []string{subArgDataset, subArgPending, "-x"}}
+	DatasetSetActive      = Command{Args: []string{subArgDataset, "set", subArgActive}}
+	DatasetCommitActive   = Command{Args: []string{subArgDataset, "commit", subArgActive}}
+	DatasetSetPending     = Command{Args: []string{subArgDataset, "set", subArgPending}}
+	DatasetCommitPending  = Command{Args: []string{subArgDataset, "commit", subArgPending}}
 )
 
 // SnapshotCommands is the full parallel collection used by topology.Build.

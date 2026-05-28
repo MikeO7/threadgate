@@ -47,15 +47,16 @@ func ParseSpinelURL(radioURL string, defaultBaud int) (Profile, bool) {
 	baud := defaultBaud
 	flow := false
 	for _, param := range strings.Split(parts[1], "&") {
-		if strings.HasPrefix(param, "uart-baudrate=") {
+		switch {
+		case strings.HasPrefix(param, "uart-baudrate="):
 			val := strings.TrimPrefix(param, "uart-baudrate=")
 			if b, err := strconv.Atoi(val); err == nil && b > 0 {
 				baud = b
 			}
-		} else if strings.HasPrefix(param, "uart-flow-control=") {
+		case strings.HasPrefix(param, "uart-flow-control="):
 			val := strings.TrimPrefix(param, "uart-flow-control=")
 			flow = (val == "1" || strings.ToLower(val) == "true")
-		} else if param == "uart-flow-control" {
+		case param == "uart-flow-control":
 			flow = true
 		}
 	}
