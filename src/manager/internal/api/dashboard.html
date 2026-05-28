@@ -4,7 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThreadGate</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Share+Tech+Mono&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#6366f1">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem("tg-theme");
+                if (t === "light" || t === "dark") {
+                    document.documentElement.setAttribute("data-theme", t);
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>{{.CSS}}</style>
 </head>
 <body>
@@ -13,78 +26,78 @@
     <header>
         <div class="logo-group">
             <div class="logo-indicator"></div>
-            <h1>ThreadGate</h1>
+            <h1>Thread<span class="h1-accent">Gate</span></h1>
         </div>
-        <div class="status-badge">
-            <span class="pulse"></span>
-            Operational
+        <div class="header-actions">
+            <div class="status-badge">
+                <span class="pulse"></span>
+                Operational
+            </div>
+            <button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle color theme" title="Toggle light / dark">
+                <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            </button>
         </div>
     </header>
 
     {{if .Status.ProbeError}}
-    <div class="card error-card" style="max-width: 1400px; margin: 0 auto 1.5rem; padding: 1.5rem; background: rgba(239, 68, 68, 0.02); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); font-family: var(--font-body);">
-        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(239, 68, 68, 0.1); padding-bottom: 1rem;">
-            <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 0.5rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+    <div class="card error-card">
+        <div class="error-head">
+            <div class="error-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
             <div>
-                <h3 style="color: #fca5a5; font-size: 1rem; font-weight: 600; margin: 0 0 0.15rem; font-family: var(--font-display);">Radio Hardware Probe Failed</h3>
-                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0; font-family: var(--font-mono);">
-                    Path: <strong style="color: var(--text-main);">{{.Status.RadioPath}}</strong> &middot; <span style="color: #f87171;">{{.Status.ProbeError}}</span>
-                </p>
+                <h3 class="error-title">Radio Hardware Probe Failed</h3>
+                <p class="error-sub">Path: <strong style="color: var(--text);">{{.Status.RadioPath}}</strong> &middot; <span style="color: var(--danger);">{{.Status.ProbeError}}</span></p>
             </div>
         </div>
 
-        <div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 1.25rem;">
-                Your USB dongle must run standard <strong>OpenThread RCP (Radio Co-Processor)</strong> firmware. If it currently runs Zigbee or Multiprotocol (Multi-PAN) firmware, select your platform below to flash it:
-            </p>
+        <p class="section-note" style="margin-bottom: 1.25rem;">
+            Your USB dongle must run standard <strong>OpenThread RCP (Radio Co-Processor)</strong> firmware. If it currently runs Zigbee or Multiprotocol (Multi-PAN) firmware, select your platform below to flash it:
+        </p>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
-                <!-- Column 1: Silicon Labs -->
-                <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.04); padding: 1.2rem; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                            <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase; font-family: var(--font-display);">Silabs</span>
-                            <h5 style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; margin: 0; font-family: var(--font-display);">SkyConnect, ZBT-1, Sonoff ZBDongle-E</h5>
-                        </div>
-                        <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.5;">
-                            <li>Uses EFR32MG21 / MG24 SoC</li>
-                            <li>Requires standard RCP firmware at <strong>460800 baud</strong></li>
-                            <li>Do not use Multiprotocol (CPC) builds</li>
-                        </ul>
+        <div class="fw-grid">
+            <div class="fw-col">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <span class="fw-tag silabs">Silabs</span>
+                        <h5 style="font-size: 0.85rem; font-weight: 600; margin: 0;">SkyConnect, ZBT-1, Sonoff ZBDongle-E</h5>
                     </div>
-                    <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; text-decoration: none; padding: 0.5rem; background: rgba(255,255,255,0.03); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        Launch Silabs Web Flasher
-                    </a>
+                    <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.6;">
+                        <li>Uses EFR32MG21 / MG24 SoC</li>
+                        <li>Requires standard RCP firmware at <strong>460800 baud</strong></li>
+                        <li>Do not use Multiprotocol (CPC) builds</li>
+                    </ul>
                 </div>
+                <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" rel="noopener" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Launch Silabs Web Flasher
+                </a>
+            </div>
 
-                <!-- Column 2: Nordic Semi -->
-                <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.04); padding: 1.2rem; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                            <span style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase; font-family: var(--font-display);">Nordic</span>
-                            <h5 style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; margin: 0; font-family: var(--font-display);">Nordic nRF52840 Dongle</h5>
-                        </div>
-                        <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.5;">
-                            <li>Requires the standard Nordic <strong>ot-rcp</strong> build</li>
-                            <li>Flash using the <strong>nRF Connect Programmer</strong> desktop app</li>
-                            <li>Write hex in bootloader mode (pulsing red LED)</li>
-                        </ul>
+            <div class="fw-col">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <span class="fw-tag nordic">Nordic</span>
+                        <h5 style="font-size: 0.85rem; font-weight: 600; margin: 0;">Nordic nRF52840 Dongle</h5>
                     </div>
-                    <a href="https://openthread.io/platforms/co-processor" target="_blank" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; text-decoration: none; padding: 0.5rem; background: rgba(255,255,255,0.03); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        Nordic RCP Docs
-                    </a>
+                    <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.6;">
+                        <li>Requires the standard Nordic <strong>ot-rcp</strong> build</li>
+                        <li>Flash using the <strong>nRF Connect Programmer</strong> desktop app</li>
+                        <li>Write hex in bootloader mode (pulsing red LED)</li>
+                    </ul>
                 </div>
+                <a href="https://openthread.io/platforms/co-processor" target="_blank" rel="noopener" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Nordic RCP Docs
+                </a>
             </div>
         </div>
     </div>
     {{end}}
 
     {{if .Warnings}}
-    <div style="max-width:1400px;margin:0 auto 1rem;padding:0.75rem 1rem;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);border-radius:12px;color:#fbbf24;font-family:var(--font-mono);font-size:0.85rem;">
+    <div class="flash-warn">
         Partial snapshot — {{len .Warnings}} ot-ctl warning(s): {{index .Warnings 0}}
     </div>
     {{end}}
@@ -98,8 +111,8 @@
     <!-- Tab 1: Full-screen mesh topology -->
     <div id="map-tab" class="tab-content active">
         <div class="map-panel">
-            <div class="card col-12 topology-card map-card" style="position: relative;">
-                <h2>Thread Mesh Map <span class="tab-subtitle">// {{len .Neighbors}} nodes · {{len .MeshLinks}} relationships</span></h2>
+            <div class="card col-12 topology-card map-card">
+                <h2>Thread Mesh Map <span class="tab-subtitle">{{len .Neighbors}} nodes · {{len .MeshLinks}} relationships</span></h2>
                 <div class="map-toolbar">
                     <div class="map-view-toggle">
                         <button id="btn-view-star" class="view-btn" type="button">Star View</button>
@@ -111,13 +124,13 @@
                 </div>
                 <div id="legend-star" class="map-legend hidden">
                     <span class="legend-item"><span class="legend-line direct"></span>OTBR to node (star topology)</span>
-                    <span class="legend-item"><span style="color: var(--text-muted);">All nodes shown as direct neighbors of the gateway</span></span>
+                    <span class="legend-item">All nodes shown as direct neighbors of the gateway</span>
                 </div>
                 <div id="legend-route" class="map-legend">
                     <span class="legend-item"><span class="legend-line direct"></span>Direct RF (hop 0)</span>
                     <span class="legend-item"><span class="legend-line child"></span>Child link</span>
                     <span class="legend-item"><span class="legend-line route"></span>Route tree edge</span>
-                    <span class="legend-item"><span style="color: var(--text-muted);">One parent link per node · hover to trace path</span></span>
+                    <span class="legend-item">One parent link per node · hover to trace path</span>
                 </div>
                 <canvas id="topologyCanvas" class="topology-canvas"></canvas>
             </div>
@@ -132,15 +145,15 @@
                 <h2>Network Status</h2>
                 <div class="metric-row">
                     <span class="metric-label">Thread Role</span>
-                    <span class="metric-value" style="color: #a78bfa;">{{.State}}</span>
+                    <span class="metric-value" style="color: var(--violet);">{{.State}}</span>
                 </div>
                 <div class="metric-row">
                     <span class="metric-label">Network Name</span>
-                    <span class="metric-value" style="color: #67e8f9;">{{.NetworkName}}</span>
+                    <span class="metric-value" style="color: var(--cyan);">{{.NetworkName}}</span>
                 </div>
-                <div class="metric-row" style="align-items: center;">
+                <div class="metric-row">
                     <span class="metric-label">Active Channel</span>
-                    <select id="channel-select" onchange="updateChannel(this.value)" style="background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; cursor: pointer; outline: none; transition: border-color 0.15s ease-in-out;">
+                    <select id="channel-select" class="field-select" onchange="updateChannel(this.value)">
                         <option value="11" {{if eq .Channel "11"}}selected{{end}}>11</option>
                         <option value="12" {{if eq .Channel "12"}}selected{{end}}>12</option>
                         <option value="13" {{if eq .Channel "13"}}selected{{end}}>13</option>
@@ -164,27 +177,25 @@
                     <span class="metric-value">0x{{.PanID}}</span>
                 </div>
 
-                <button id="btn-scan-channels" onclick="scanAndRecommendChannels()" class="action-btn" style="width: 100%; margin-top: 1.25rem; padding: 0.6rem; background: var(--accent-purple); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-weight: 500; font-size: 0.8rem; transition: background 0.2s, opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.25);">
+                <button id="btn-scan-channels" onclick="scanAndRecommendChannels()" class="action-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    Scan & Recommend Channels
+                    Scan &amp; Recommend Channels
                 </button>
 
-                <div id="scan-recommendation-area" style="display: none; margin-top: 1rem; padding: 0.85rem; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
-                    <p style="font-size: 0.7rem; font-family: var(--font-display); margin-bottom: 0.35rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.75px; font-weight: 600;">Recommended Channel:</p>
-                    <div id="best-channel-badge" style="font-size: 1.15rem; font-weight: 700; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-family: var(--font-display);">
+                <div id="scan-recommendation-area" class="scan-area" style="display: none;">
+                    <p class="section-label" style="margin-bottom: 0.4rem;">Recommended Channel</p>
+                    <div id="best-channel-badge" class="scan-best">
                         Channel <span id="recommended-channel-num">15</span>
-                        <span id="recommended-channel-rating" style="font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.5px;">Excellent</span>
+                        <span id="recommended-channel-rating" class="rating-badge">Excellent</span>
                     </div>
-                    <p id="recommended-channel-text" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.85rem; line-height: 1.4; font-family: var(--font-body);"></p>
+                    <p id="recommended-channel-text" class="section-note" style="margin-bottom: 0.85rem;"></p>
 
-                    <p style="font-size: 0.7rem; font-family: var(--font-display); margin-bottom: 0.4rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.75px; font-weight: 600; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.75rem;">Full Spectrum Interference:</p>
-                    <div id="scanned-channels-details" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; padding-right: 0.25rem;">
-                        <!-- Rows of scan results -->
-                    </div>
+                    <p class="section-label section-divider" style="margin-bottom: 0.5rem;">Full Spectrum Interference</p>
+                    <div id="scanned-channels-details" class="scan-list"></div>
                 </div>
             </div>
 
-            <!-- Card 3: Hardware & API -->
+            <!-- Card 2: Hardware & API -->
             <div class="card col-4">
                 <h2>Hardware Details</h2>
                 <div class="metric-row">
@@ -197,18 +208,18 @@
                 </div>
                 <div class="metric-row">
                     <span class="metric-label">REST API Port</span>
-                    <span class="metric-value" style="color: var(--accent-cyan);">{{.Port}}</span>
+                    <span class="metric-value" style="color: var(--cyan);">{{.Port}}</span>
                 </div>
                 <div class="metric-row">
                     <span class="metric-label">Operational Mode</span>
-                    <span class="metric-value">{{if .MockMode}}<span style="color: var(--warning-color)">Simulated (Mock)</span>{{else}}<span style="color: var(--success-color)">Hardware (Real)</span>{{end}}</span>
+                    <span class="metric-value">{{if .MockMode}}<span style="color: var(--warning)">Simulated (Mock)</span>{{else}}<span style="color: var(--success)">Hardware (Real)</span>{{end}}</span>
                 </div>
             </div>
 
-            <!-- Card 4: Performance Audit Counters -->
+            <!-- Card 3: Performance Audit Counters -->
             <div class="card col-4">
                 <h2>Packet Counters</h2>
-                <div class="table-wrapper" style="max-height: 190px; overflow-y: auto;">
+                <div class="table-wrapper" style="max-height: 190px;">
                     <table>
                         <thead>
                             <tr>
@@ -220,11 +231,11 @@
                             {{range .Counters}}
                             <tr>
                                 <td style="color: var(--text-muted);">{{.Key}}</td>
-                                <td style="text-align: right; color: var(--success-color); font-weight: bold;">{{.Val}}</td>
+                                <td style="text-align: right; color: var(--success); font-weight: 600;">{{.Val}}</td>
                             </tr>
                             {{else}}
                             <tr>
-                                <td colspan="2" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No operational statistics recorded</td>
+                                <td colspan="2" style="text-align: center; color: var(--text-subtle); padding: 2rem 0;">No operational statistics recorded</td>
                             </tr>
                             {{end}}
                         </tbody>
@@ -232,10 +243,10 @@
                 </div>
             </div>
 
-            <!-- Card 5: Thread Neighbors Grid -->
+            <!-- Card 4: Thread Neighbors Grid -->
             <div class="card col-8">
-                <h2>Connected Neighbors ({{len .Neighbors}})</h2>
-                <div class="table-wrapper" style="max-height: 320px; overflow-y: auto;">
+                <h2>Connected Neighbors <span class="tab-subtitle">{{len .Neighbors}} active</span></h2>
+                <div class="table-wrapper" style="max-height: 320px;">
                     <table>
                         <thead>
                             <tr>
@@ -255,7 +266,7 @@
                             </tr>
                             {{else}}
                             <tr>
-                                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-family: var(--font-display);">No active neighbor connections discovered</td>
+                                <td colspan="3" style="text-align: center; color: var(--text-subtle); padding: 2.5rem 0;">No active neighbor connections discovered</td>
                             </tr>
                             {{end}}
                         </tbody>
@@ -263,41 +274,41 @@
                 </div>
             </div>
 
-            <!-- Card 6: Active Dataset Inspector & Provisioner -->
+            <!-- Card 5: Active Dataset Inspector & Provisioner -->
             <div class="card col-4">
                 <h2>Dataset Management</h2>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Active Thread Dataset TLV Hex:</p>
+                <p class="section-label">Active Thread Dataset TLV Hex</p>
                 <div class="copy-container" style="margin-bottom: 1.5rem;">
                     <div class="dataset-hex" id="tlvBlock">{{.ActiveDataset}}</div>
                     <button class="copy-btn" onclick="copyDataset()">Copy</button>
                 </div>
 
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.2rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Backup &amp; Restore:</p>
-                <p style="font-size: 0.75rem; color: var(--warning-color); margin-bottom: 0.75rem; line-height: 1.4;">Backup files contain your network master key and credentials. Store them securely.</p>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <p class="section-label section-divider">Backup &amp; Restore</p>
+                <p class="section-note warn">Backup files contain your network master key and credentials. Store them securely.</p>
+                <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem;">
                     <button onclick="downloadBackup()" class="cyber-button secondary">Download Backup</button>
                     <button onclick="saveBackupToDisk()" class="cyber-button secondary">Save to /data/backups</button>
                     <input type="file" id="backupFileInput" accept=".json,application/json" style="display: none;" onchange="importBackupFile(event)" />
                     <button onclick="document.getElementById('backupFileInput').click()" class="cyber-button">Import Backup File</button>
-                    <div id="backupStatus" style="font-size: 0.8rem; font-family: var(--font-display); text-align: center; font-weight: 600;"></div>
+                    <div id="backupStatus" style="font-size: 0.8rem; text-align: center; font-weight: 600;"></div>
                 </div>
 
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.2rem; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.5px;">Provision Network Credentials:</p>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <p class="section-label section-divider">Provision Network Credentials</p>
+                <div style="display: flex; flex-direction: column; gap: 0.6rem;">
                     <input type="text" id="provisionHex" placeholder="Paste hex dataset TLV..." class="cyber-input" />
                     <button onclick="provisionDataset()" class="cyber-button">Provision Dataset</button>
-                    <div id="provisionStatus" style="font-size: 0.8rem; font-family: var(--font-display); text-align: center; margin-top: 0.2rem; font-weight: 600;"></div>
+                    <div id="provisionStatus" style="font-size: 0.8rem; text-align: center; margin-top: 0.2rem; font-weight: 600;"></div>
                 </div>
             </div>
 
-            <!-- Card 7: IPv6 Mesh Addresses -->
+            <!-- Card 6: IPv6 Mesh Addresses -->
             <div class="card col-12">
                 <h2>Assigned IPv6 Interface Addresses</h2>
                 <div class="chips-container">
                     {{range .IPAddresses}}
                     <span class="ip-chip">{{.}}</span>
                     {{else}}
-                    <span style="color: var(--text-muted); font-family: var(--font-display);">No active IPv6 endpoints configured</span>
+                    <span style="color: var(--text-subtle);">No active IPv6 endpoints configured</span>
                     {{end}}
                 </div>
             </div>
@@ -307,28 +318,44 @@
     <!-- Tab 3: System event log stream -->
     <div id="logs-tab" class="tab-content">
         <div class="terminal-container col-12">
-            <h2 style="font-family: var(--font-display); margin-bottom: 1.2rem; color: #a5b4fc; font-size: 1.25rem;">Event Logs</h2>
+            <div class="terminal-head">
+                <span class="term-dots"><span></span><span></span><span></span></span>
+                <h2>Event Logs</h2>
+            </div>
             <div id="terminal">
-                <div style="color: #94a3b8;">[SYSTEM] Initializing ThreadGate Diagnostic Logger Console...</div>
-                <div style="color: #94a3b8;">[SYSTEM] Connection established on local socket {{.Port}}.</div>
-                <div style="color: #94a3b8;">[SYSTEM] Listening for active Thread mesh framework streams...</div>
+                <div style="color: var(--text-muted);">[SYSTEM] Initializing ThreadGate Diagnostic Logger Console...</div>
+                <div style="color: var(--text-muted);">[SYSTEM] Connection established on local socket {{.Port}}.</div>
+                <div style="color: var(--text-muted);">[SYSTEM] Listening for active Thread mesh framework streams...</div>
             </div>
         </div>
     </div>
     </div>
 
     <script>
+        function toggleTheme() {
+            var root = document.documentElement;
+            var current = root.getAttribute("data-theme");
+            var systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            var effective = current || (systemDark ? "dark" : "light");
+            var next = effective === "dark" ? "light" : "dark";
+            root.setAttribute("data-theme", next);
+            try { localStorage.setItem("tg-theme", next); } catch (e) {}
+            if (window.__refreshMapPalette) { window.__refreshMapPalette(); }
+        }
+
         function copyDataset() {
             var text = document.getElementById("tlvBlock").innerText;
             navigator.clipboard.writeText(text).then(function() {
                 var btn = document.querySelector(".copy-btn");
-                btn.innerText = "COPIED!";
-                btn.style.background = "var(--success-color)";
-                btn.style.color = "#000";
+                btn.innerText = "Copied!";
+                btn.style.background = "var(--success)";
+                btn.style.color = "#fff";
+                btn.style.borderColor = "transparent";
                 setTimeout(function() {
                     btn.innerText = "Copy";
                     btn.style.background = "";
                     btn.style.color = "";
+                    btn.style.borderColor = "";
                 }, 2000);
             });
         }
@@ -340,7 +367,7 @@
         }
 
         function downloadBackup() {
-            setBackupStatus("var(--warning-color)", "EXPORTING BACKUP...");
+            setBackupStatus("var(--warning)", "EXPORTING BACKUP...");
             fetch("/api/backup")
                 .then(function(res) {
                     if (!res.ok) {
@@ -364,15 +391,15 @@
                     link.click();
                     link.remove();
                     URL.revokeObjectURL(url);
-                    setBackupStatus("var(--success-color)", "BACKUP DOWNLOADED");
+                    setBackupStatus("var(--success)", "BACKUP DOWNLOADED");
                 })
                 .catch(function(err) {
-                    setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+                    setBackupStatus("var(--danger)", "ERROR: " + err.message);
                 });
         }
 
         function saveBackupToDisk() {
-            setBackupStatus("var(--warning-color)", "SAVING BACKUP TO DISK...");
+            setBackupStatus("var(--warning)", "SAVING BACKUP TO DISK...");
             fetch("/api/backup/save", { method: "POST" })
                 .then(function(res) {
                     if (!res.ok) {
@@ -383,10 +410,10 @@
                     return res.json();
                 })
                 .then(function(data) {
-                    setBackupStatus("var(--success-color)", "SAVED: " + (data.filename || "backup"));
+                    setBackupStatus("var(--success)", "SAVED: " + (data.filename || "backup"));
                 })
                 .catch(function(err) {
-                    setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+                    setBackupStatus("var(--danger)", "ERROR: " + err.message);
                 });
         }
 
@@ -396,7 +423,7 @@
             if (!file) {
                 return;
             }
-            setBackupStatus("var(--warning-color)", "IMPORTING BACKUP...");
+            setBackupStatus("var(--warning)", "IMPORTING BACKUP...");
             file.text().then(function(text) {
                 return fetch("/api/backup/import", {
                     method: "POST",
@@ -409,12 +436,12 @@
                         throw new Error(err);
                     });
                 }
-                setBackupStatus("var(--success-color)", "BACKUP IMPORTED! RELOADING...");
+                setBackupStatus("var(--success)", "BACKUP IMPORTED! RELOADING...");
                 setTimeout(function() {
                     location.reload();
                 }, 1500);
             }).catch(function(err) {
-                setBackupStatus("var(--danger-color)", "ERROR: " + err.message);
+                setBackupStatus("var(--danger)", "ERROR: " + err.message);
             });
         }
 
@@ -422,11 +449,11 @@
             var hex = document.getElementById("provisionHex").value.trim();
             var statusDiv = document.getElementById("provisionStatus");
             if (!hex) {
-                statusDiv.style.color = "var(--danger-color)";
+                statusDiv.style.color = "var(--danger)";
                 statusDiv.innerText = "Please enter a valid hex dataset.";
                 return;
             }
-            statusDiv.style.color = "var(--warning-color)";
+            statusDiv.style.color = "var(--warning)";
             statusDiv.innerText = "PROVISIONING NETWORK CREDENTIALS...";
 
             fetch("/node/dataset/active", {
@@ -435,42 +462,42 @@
                 body: hex
             }).then(function(res) {
                 if (res.ok) {
-                    statusDiv.style.color = "var(--success-color)";
+                    statusDiv.style.color = "var(--success)";
                     statusDiv.innerText = "SUCCESSFULLY PROVISIONED! REBOOTING INTERFACE...";
                     setTimeout(function() {
                         location.reload();
                     }, 1500);
                 } else {
                     res.text().then(function(err) {
-                        statusDiv.style.color = "var(--danger-color)";
+                        statusDiv.style.color = "var(--danger)";
                         statusDiv.innerText = "ERROR: " + err;
                     });
                 }
             }).catch(function(err) {
-                statusDiv.style.color = "var(--danger-color)";
+                statusDiv.style.color = "var(--danger)";
                 statusDiv.innerText = "CONNECTION FAILURE: " + err;
             });
         }
 
         function updateChannel(chan) {
-            addLog("SYSTEM", "Adjusting active Thread channel to " + chan + "...", "#e11d48");
+            addLog("SYSTEM", "Adjusting active Thread channel to " + chan + "...", "var(--danger)");
             fetch("/api/node/channel", {
                 method: "PUT",
                 headers: { "Content-Type": "text/plain" },
                 body: chan
             }).then(function(res) {
                 if (res.ok) {
-                    addLog("SYSTEM", "Successfully updated channel to " + chan + "!", "#10b981");
+                    addLog("SYSTEM", "Successfully updated channel to " + chan + "!", "var(--success)");
                     setTimeout(function() {
                         location.reload();
                     }, 1000);
                 } else {
                     res.text().then(function(err) {
-                        addLog("SYSTEM", "Error changing channel: " + err, "#ef4444");
+                        addLog("SYSTEM", "Error changing channel: " + err, "var(--danger)");
                     });
                 }
             }).catch(function(err) {
-                addLog("SYSTEM", "Network connection failed: " + err, "#ef4444");
+                addLog("SYSTEM", "Network connection failed: " + err, "var(--danger)");
             });
         }
 
@@ -482,10 +509,9 @@
             var bestRating = document.getElementById("recommended-channel-rating");
             var bestText = document.getElementById("recommended-channel-text");
 
-            addLog("SCAN", "Initiating IEEE 802.15.4 Channel Energy Scan...", "#a855f7");
+            addLog("SCAN", "Initiating IEEE 802.15.4 Channel Energy Scan...", "var(--violet)");
             btn.disabled = true;
-            btn.innerText = "Scanning Channels (please wait)...";
-            btn.style.opacity = "0.7";
+            btn.innerText = "Scanning Channels...";
 
             fetch("/api/node/channels/scan")
                 .then(function(res) {
@@ -496,15 +522,14 @@
                 })
                 .then(function(results) {
                     btn.disabled = false;
-                    btn.innerText = "🔍 Scan & Recommend Best Channel";
-                    btn.style.opacity = "";
+                    btn.innerText = "Scan & Recommend Channels";
 
                     if (!results || results.length === 0) {
-                        addLog("SCAN", "Channel Scan returned no results.", "#ef4444");
+                        addLog("SCAN", "Channel Scan returned no results.", "var(--danger)");
                         return;
                     }
 
-                    addLog("SCAN", "Scan complete! Analyzing interference patterns...", "#10b981");
+                    addLog("SCAN", "Scan complete! Analyzing interference patterns...", "var(--success)");
                     area.style.display = "block";
 
                     // Sort results by RSSI ascending (most negative / lowest noise first)
@@ -519,17 +544,17 @@
 
                     // Set rating badge style and colors
                     if (best.rating === "Excellent") {
-                        bestRating.style.background = "rgba(16, 185, 129, 0.1)";
-                        bestRating.style.color = "var(--success-color)";
+                        bestRating.style.background = "var(--success-soft)";
+                        bestRating.style.color = "var(--success)";
                     } else if (best.rating === "Good") {
-                        bestRating.style.background = "rgba(6, 182, 212, 0.1)";
-                        bestRating.style.color = "var(--accent-cyan)";
+                        bestRating.style.background = "var(--accent-soft)";
+                        bestRating.style.color = "var(--accent)";
                     } else if (best.rating === "Fair") {
-                        bestRating.style.background = "rgba(245, 158, 11, 0.1)";
-                        bestRating.style.color = "var(--warning-color)";
+                        bestRating.style.background = "var(--warning-soft)";
+                        bestRating.style.color = "var(--warning)";
                     } else {
-                        bestRating.style.background = "rgba(244, 63, 94, 0.1)";
-                        bestRating.style.color = "var(--danger-color)";
+                        bestRating.style.background = "var(--danger-soft)";
+                        bestRating.style.color = "var(--danger)";
                     }
 
                     // Render list of all channels with color coding
@@ -538,53 +563,51 @@
                         var row = document.createElement("div");
                         row.style.display = "flex";
                         row.style.justifyContent = "space-between";
-                        row.style.padding = "0.2rem 0";
-                        row.style.borderBottom = "1px solid rgba(255,255,255,0.02)";
+                        row.style.alignItems = "center";
+                        row.style.padding = "0.35rem 0";
+                        row.style.borderBottom = "1px solid var(--border)";
+                        row.style.fontSize = "0.8rem";
 
                         var badgeColor = "var(--text-muted)";
-                        if (r.rating === "Excellent") badgeColor = "var(--success-color)";
-                        else if (r.rating === "Good") badgeColor = "var(--accent-cyan)";
-                        else if (r.rating === "Fair") badgeColor = "var(--warning-color)";
-                        else if (r.rating === "Poor") badgeColor = "var(--danger-color)";
+                        if (r.rating === "Excellent") badgeColor = "var(--success)";
+                        else if (r.rating === "Good") badgeColor = "var(--accent)";
+                        else if (r.rating === "Fair") badgeColor = "var(--warning)";
+                        else if (r.rating === "Poor") badgeColor = "var(--danger)";
 
                         var channelLabel = document.createElement("span");
-                        channelLabel.style.color = "var(--text-main)";
+                        channelLabel.style.color = "var(--text)";
                         channelLabel.style.fontWeight = "500";
+                        channelLabel.style.fontFamily = "var(--font-mono)";
                         channelLabel.textContent = "Ch " + String(r.channel);
                         row.appendChild(channelLabel);
 
                         var stats = document.createElement("span");
+                        stats.style.color = "var(--text-muted)";
                         stats.textContent = "RSSI: ";
                         var rssi = document.createElement("strong");
                         rssi.style.color = badgeColor;
                         rssi.style.fontWeight = "600";
+                        rssi.style.fontFamily = "var(--font-mono)";
                         rssi.textContent = String(r.rssi) + " dBm";
                         stats.appendChild(rssi);
 
                         var ratingBadge = document.createElement("span");
-                        ratingBadge.style.fontSize = "0.65rem";
-                        ratingBadge.style.padding = "0.1rem 0.3rem";
-                        ratingBadge.style.borderRadius = "4px";
-                        ratingBadge.style.background = "rgba(255,255,255,0.03)";
+                        ratingBadge.className = "rating-badge";
                         ratingBadge.style.color = badgeColor;
-                        ratingBadge.style.fontFamily = "var(--font-body)";
-                        ratingBadge.style.textTransform = "uppercase";
-                        ratingBadge.style.marginLeft = "0.25rem";
+                        ratingBadge.style.marginLeft = "0.5rem";
                         ratingBadge.textContent = String(r.rating);
-                        stats.appendChild(document.createTextNode(" "));
                         stats.appendChild(ratingBadge);
                         row.appendChild(stats);
 
                         details.appendChild(row);
                     });
 
-                    addLog("SCAN", "Recommendation: Channel " + String(best.channel) + " is the clearest frequency.", "#a855f7");
+                    addLog("SCAN", "Recommendation: Channel " + String(best.channel) + " is the clearest frequency.", "var(--violet)");
                 })
                 .catch(function(err) {
                     btn.disabled = false;
-                    btn.innerText = "🔍 Scan & Recommend Best Channel";
-                    btn.style.opacity = "";
-                    addLog("SCAN", "Scan failed: " + err.message, "#ef4444");
+                    btn.innerText = "Scan & Recommend Channels";
+                    addLog("SCAN", "Scan failed: " + err.message, "var(--danger)");
                 });
         }
 
@@ -625,19 +648,20 @@
             var line = document.createElement("div");
 
             var timeSpan = document.createElement("span");
-            timeSpan.style.color = "#64748b";
+            timeSpan.style.color = "var(--text-subtle)";
             timeSpan.textContent = "[" + timeStr + "] ";
             line.appendChild(timeSpan);
 
             if (tag) {
                 var label = document.createElement("span");
-                label.style.color = tagColor || "#64748b";
+                label.style.color = tagColor || "var(--text-subtle)";
+                label.style.fontWeight = "600";
                 label.textContent = "[" + tag + "] ";
                 line.appendChild(label);
             }
 
             var msgSpan = document.createElement("span");
-            msgSpan.textContent = message;
+            msgSpan.innerHTML = message;
             line.appendChild(msgSpan);
 
             term.appendChild(line);
@@ -647,15 +671,15 @@
             }
         }
 
-        // Periodically inject interesting telemetry events for cyber activity
+        // Periodically inject interesting telemetry events for system activity
         setInterval(function() {
             var logEvents = [
-                { tag: "MDNS", color: "#06b6d4", message: "advertised border routing service _meshcop._udp via avahi-daemon" },
-                { tag: "DBUS", color: "#8b5cf6", message: "synced dynamic routing tables with POSIX framework" },
-                { tag: "AUDIT", color: "#10b981", message: "evaluated mesh link performance: partition is healthy" },
-                { tag: "HASS", color: "#06b6d4", message: "synchronized system active topology map with Home Assistant integration" },
-                { tag: "DAEMON", color: "#a855f7", message: "verified Border Router state: LEADER partition verified" },
-                { tag: "HARDWARE", color: "#10b981", message: "scrutinized sysFS endpoints: zero interface friction detected" }
+                { tag: "MDNS", color: "var(--cyan)", message: "advertised border routing service _meshcop._udp via avahi-daemon" },
+                { tag: "DBUS", color: "var(--violet)", message: "synced dynamic routing tables with POSIX framework" },
+                { tag: "AUDIT", color: "var(--success)", message: "evaluated mesh link performance: partition is healthy" },
+                { tag: "HASS", color: "var(--cyan)", message: "synchronized system active topology map with Home Assistant integration" },
+                { tag: "DAEMON", color: "var(--violet)", message: "verified Border Router state: LEADER partition verified" },
+                { tag: "HARDWARE", color: "var(--success)", message: "scrutinized sysFS endpoints: zero interface friction detected" }
             ];
             var randomEvent = logEvents[Math.floor(Math.random() * logEvents.length)];
             addLog(randomEvent.tag, randomEvent.message, randomEvent.color);

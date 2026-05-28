@@ -4,6 +4,52 @@
             var ctx = canvas.getContext("2d");
             var tooltip = document.getElementById("tooltip");
 
+            // ---- Theme-aware palette (canvas can't read CSS vars directly) ----
+            function readVar(name, fallback) {
+                var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+                return (v && v.trim()) || fallback;
+            }
+            function hexToRgb(hex) {
+                hex = (hex || "").trim().replace("#", "");
+                if (hex.length === 3) {
+                    hex = hex.split("").map(function(c) { return c + c; }).join("");
+                }
+                var n = parseInt(hex, 16);
+                return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+            }
+            function withAlpha(hex, a) {
+                var c = hexToRgb(hex);
+                return "rgba(" + c.r + "," + c.g + "," + c.b + "," + a + ")";
+            }
+            var palette = {};
+            function refreshPalette() {
+                palette = {
+                    bg: readVar("--map-bg", "#0a0b0f"),
+                    grid: readVar("--map-grid", "rgba(255,255,255,0.04)"),
+                    gridAccent: readVar("--map-grid-accent", "rgba(129,140,248,0.12)"),
+                    gateway: readVar("--map-gateway", "#6366f1"),
+                    success: readVar("--map-success", "#10b981"),
+                    warning: readVar("--map-warning", "#f59e0b"),
+                    danger: readVar("--map-danger", "#f43f5e"),
+                    child: readVar("--map-child", "#22d3ee"),
+                    route: readVar("--map-route", "#a78bfa"),
+                    nodeCore: readVar("--map-node-core", "#ffffff"),
+                    labelBg: readVar("--map-label-bg", "rgba(10,11,15,0.9)"),
+                    labelBorder: readVar("--map-label-border", "rgba(255,255,255,0.1)"),
+                    labelText: readVar("--map-label-text", "#cbd5e1"),
+                    particle: readVar("--map-particle", "#c7d2fe")
+                };
+            }
+            refreshPalette();
+            window.__refreshMapPalette = refreshPalette;
+            try {
+                window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshPalette);
+            } catch (e) {}
+
+            function lqiColor(lqi) {
+                return lqi === 3 ? palette.success : (lqi === 2 ? palette.warning : palette.danger);
+            }
+
             function mapLink(l) {
                 return {
                     From: l.from || l.FromRloc16 || "",
@@ -118,21 +164,22 @@
                     var y2 = cy + toNode.y;
 
                     ctx.save();
-                    ctx.globalAlpha = dimmed ? 0.1 : (isHighlighted ? 1 : 0.72);
+                    ctx.globalAlpha = dimmed ? 0.12 : (isHighlighted ? 1 : 0.72);
+                    ctx.lineCap = "round";
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, y2);
 
                     if (link.Kind === "direct") {
-                        ctx.strokeStyle = isHighlighted ? "rgba(52, 211, 153, 0.95)" : "rgba(52, 211, 153, 0.55)";
+                        ctx.strokeStyle = withAlpha(palette.success, isHighlighted ? 0.95 : 0.55);
                         ctx.lineWidth = isHighlighted ? 2.4 : 1.8;
                         ctx.setLineDash([]);
                     } else if (link.Kind === "child") {
-                        ctx.strokeStyle = isHighlighted ? "rgba(34, 211, 238, 0.95)" : "rgba(34, 211, 238, 0.5)";
+                        ctx.strokeStyle = withAlpha(palette.child, isHighlighted ? 0.95 : 0.5);
                         ctx.lineWidth = isHighlighted ? 2.2 : 1.5;
                         ctx.setLineDash([3, 5]);
                     } else {
-                        ctx.strokeStyle = isHighlighted ? "rgba(196, 181, 253, 0.95)" : "rgba(167, 139, 250, 0.45)";
+                        ctx.strokeStyle = withAlpha(palette.route, isHighlighted ? 0.95 : 0.45);
                         ctx.lineWidth = isHighlighted ? 2 : 1.3;
                         ctx.setLineDash([]);
                     }
@@ -176,6 +223,7 @@
 
                     ctx.save();
                     ctx.globalAlpha = dimmed ? 0.12 : 1;
+                    ctx.lineCap = "round";
 
                     ctx.beginPath();
                     if (link.Kind === "route") {
@@ -196,23 +244,15 @@
 
                     if (link.Kind === "direct") {
                         var lqi = toNode.lqi || 3;
-                        if (lqi === 3) {
-                            ctx.strokeStyle = isHighlighted ? "rgba(16, 185, 129, 0.9)" : "rgba(16, 185, 129, 0.55)";
-                            ctx.lineWidth = isHighlighted ? 2.6 : 2.2;
-                        } else if (lqi === 2) {
-                            ctx.strokeStyle = isHighlighted ? "rgba(245, 158, 11, 0.9)" : "rgba(245, 158, 11, 0.55)";
-                            ctx.lineWidth = isHighlighted ? 2.2 : 1.8;
-                        } else {
-                            ctx.strokeStyle = isHighlighted ? "rgba(244, 63, 94, 0.9)" : "rgba(244, 63, 94, 0.55)";
-                            ctx.lineWidth = isHighlighted ? 2 : 1.5;
-                        }
+                        ctx.strokeStyle = withAlpha(lqiColor(lqi), isHighlighted ? 0.9 : 0.55);
+                        ctx.lineWidth = lqi === 3 ? (isHighlighted ? 2.6 : 2.2) : (lqi === 2 ? (isHighlighted ? 2.2 : 1.8) : (isHighlighted ? 2 : 1.5));
                         ctx.setLineDash([]);
                     } else if (link.Kind === "child") {
-                        ctx.strokeStyle = isHighlighted ? "rgba(6, 182, 212, 0.85)" : "rgba(6, 182, 212, 0.5)";
+                        ctx.strokeStyle = withAlpha(palette.child, isHighlighted ? 0.85 : 0.5);
                         ctx.lineWidth = isHighlighted ? 2 : 1.6;
                         ctx.setLineDash([2, 4]);
                     } else {
-                        ctx.strokeStyle = isHighlighted ? "rgba(167, 139, 250, 0.95)" : "rgba(139, 92, 246, 0.42)";
+                        ctx.strokeStyle = withAlpha(palette.route, isHighlighted ? 0.95 : 0.42);
                         ctx.lineWidth = isHighlighted ? 2 : 1.4;
                         ctx.setLineDash([5, 5]);
                     }
@@ -222,8 +262,8 @@
                     if (link.Kind === "route" && isHighlighted) {
                         var labelX = (x1 + x2) / 2;
                         var labelY = (y1 + y2) / 2;
-                        ctx.font = "bold 8px 'Share Tech Mono', monospace";
-                        ctx.fillStyle = "rgba(196, 181, 253, 0.9)";
+                        ctx.font = "600 9px 'JetBrains Mono', monospace";
+                        ctx.fillStyle = withAlpha(palette.route, 0.9);
                         ctx.textAlign = "center";
                         ctx.fillText("via", labelX, labelY - 4);
                     }
@@ -244,7 +284,6 @@
                 rloc: boot.rloc16 || "",
                 isCenter: true,
                 baseRadius: 18,
-                color: "#6366f1",
                 pulsePhase: 0
             }];
 
@@ -318,7 +357,7 @@
                 ctx.beginPath();
                 ctx.moveTo(cx + fromNode.x, cy + fromNode.y);
                 ctx.lineTo(cx + toNode.x, cy + toNode.y);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+                ctx.strokeStyle = withAlpha(palette.gateway, 0.22);
                 ctx.lineWidth = 2.5;
                 ctx.setLineDash([]);
                 ctx.stroke();
@@ -563,18 +602,20 @@
                     }
 
                     ctx.beginPath();
+                    ctx.lineCap = "round";
                     ctx.moveTo(cx + center.x, cy + center.y);
                     ctx.lineTo(cx + node.x, cy + node.y);
 
                     if (node.lqi === 3) {
-                        ctx.strokeStyle = "rgba(16, 185, 129, 0.45)";
+                        ctx.strokeStyle = withAlpha(palette.success, 0.45);
                         ctx.lineWidth = 2;
+                        ctx.setLineDash([]);
                     } else if (node.lqi === 2) {
-                        ctx.strokeStyle = "rgba(245, 158, 11, 0.5)";
+                        ctx.strokeStyle = withAlpha(palette.warning, 0.5);
                         ctx.lineWidth = 1.5;
                         ctx.setLineDash([4, 4]);
                     } else {
-                        ctx.strokeStyle = "rgba(244, 63, 94, 0.5)";
+                        ctx.strokeStyle = withAlpha(palette.danger, 0.5);
                         ctx.lineWidth = 1.2;
                         ctx.setLineDash([2, 5]);
                     }
@@ -711,10 +752,11 @@
 
             function scaleCanvas() {
                 var rect = canvas.getBoundingClientRect();
-                canvas.width = rect.width * 2;
-                canvas.height = rect.height * 2;
+                var dpr = window.devicePixelRatio || 1;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.scale(2, 2);
+                ctx.scale(dpr, dpr);
                 refreshLayout();
             }
 
@@ -820,20 +862,20 @@
                     layout = computeMeshLayout(rect);
                 }
 
-                // Solid dark background clear to prevent node dragging trails
-                ctx.fillStyle = "#020306";
+                // Solid background clear to prevent node dragging trails
+                ctx.fillStyle = palette.bg;
                 ctx.fillRect(0, 0, rect.width, rect.height);
 
-                // Draw faint hop guides in route view
-                ctx.strokeStyle = "rgba(6, 182, 212, 0.07)";
+                // Draw faint hop guides
+                ctx.strokeStyle = palette.gridAccent;
                 ctx.lineWidth = 1;
                 ctx.setLineDash([4, 14]);
                 if (mapViewMode === "route" && layout.ringRadii && layout.ringRadii.length) {
                     layout.ringRadii.forEach(function(r, idx) {
                         drawOrbitRing(cx, cy, r, layout);
                         ctx.save();
-                        ctx.font = "600 9px 'Share Tech Mono', monospace";
-                        ctx.fillStyle = "rgba(6, 182, 212, 0.35)";
+                        ctx.font = "600 9px 'JetBrains Mono', monospace";
+                        ctx.fillStyle = withAlpha(palette.labelText, 0.5);
                         ctx.textAlign = "left";
                         var labelX = cx + r * (layout.orbitScaleX || 1) + 8;
                         ctx.fillText("hop " + idx, labelX, cy - 6);
@@ -871,7 +913,7 @@
                     drawRouteTreeLinks(cx, cy, hoveredNode, routingTree);
                 }
 
-                // 3. Transmit traffic flow particles along routing hops
+                // Transmit traffic flow particles along routing hops
                 if (showTraffic && Math.random() < 0.04 && nodes.length > 1) {
                     var targetNode = nodes[Math.floor(Math.random() * (nodes.length - 1)) + 1];
                     var path = getTrafficPath(targetNode);
@@ -884,7 +926,7 @@
                             progress: 0,
                             speed: (0.007 + Math.random() * 0.008) / hopCount,
                             inbound: Math.random() < 0.5,
-                            color: targetNode.lqi === 3 ? "var(--success-color)" : targetNode.lqi === 2 ? "var(--warning-color)" : "var(--danger-color)",
+                            color: lqiColor(targetNode.lqi),
                             trail: []
                         });
                     }
@@ -902,7 +944,7 @@
                     if (p.progress >= 1) {
                         var direction = p.inbound ? "Received" : "Transmitted";
                         var byteCount = Math.floor(Math.random() * 128) + 16;
-                        addLog(`<span style="color: var(--accent-cyan)">[TRAFFIC]</span> ${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: #a78bfa;">${p.target.rloc}</span>`);
+                        addLog(`<span style="color: var(--cyan)">[TRAFFIC]</span> ${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: var(--violet);">${p.target.rloc}</span>`);
                         particles.splice(i, 1);
                         continue;
                     }
@@ -929,85 +971,80 @@
                     // Lead particle
                     ctx.beginPath();
                     ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-                    ctx.fillStyle = "#ffffff";
+                    ctx.fillStyle = palette.nodeCore;
                     ctx.shadowBlur = 10;
                     ctx.shadowColor = p.color;
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }
 
-                // 3. Render Nodes
+                // Render Nodes
                 nodes.forEach(function(node) {
                     node.pulsePhase += node.isCenter ? 0.025 : 0.018;
 
                     var screenX = cx + node.x;
                     var screenY = cy + node.y;
-
-                    var dist = Math.hypot(mouseX - screenX, mouseY - screenY);
                     var isHovered = node === hoveredNode;
+                    var coreColor = node.isCenter ? palette.gateway : lqiColor(node.lqi);
 
                     // Glowing backdrop aura
                     var pulseSize = 1.35 + (Math.sin(node.pulsePhase) * 0.15);
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, node.baseRadius * pulseSize, 0, Math.PI * 2);
-                    ctx.fillStyle = node.isCenter ? "rgba(99, 102, 241, 0.08)" :
-                                    node.lqi === 3 ? "rgba(16, 185, 129, 0.08)" :
-                                    node.lqi === 2 ? "rgba(245, 158, 11, 0.08)" : "rgba(244, 63, 94, 0.08)";
+                    ctx.fillStyle = withAlpha(coreColor, 0.10);
                     ctx.fill();
 
-                    // Active border highlights
+                    // Active border highlight
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, node.baseRadius + (isHovered ? 4 : 2), 0, Math.PI * 2);
-                    ctx.strokeStyle = isHovered ? "var(--accent-cyan)" : "rgba(255,255,255,0.08)";
+                    ctx.strokeStyle = isHovered ? palette.child : withAlpha(palette.labelText, 0.22);
                     ctx.lineWidth = 1.5;
                     ctx.stroke();
 
                     // Solid node core
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, node.baseRadius, 0, Math.PI * 2);
-                    if (node.isCenter) {
-                        ctx.fillStyle = "var(--accent-primary)";
-                    } else {
-                        ctx.fillStyle = node.lqi === 3 ? "var(--success-color)" :
-                                        node.lqi === 2 ? "var(--warning-color)" : "var(--danger-color)";
-                    }
+                    ctx.fillStyle = coreColor;
                     ctx.fill();
 
                     // Inner bright core
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, node.baseRadius * 0.45, 0, Math.PI * 2);
-                    ctx.fillStyle = "#ffffff";
+                    ctx.fillStyle = palette.nodeCore;
                     ctx.fill();
 
                     if (node.isCenter || isHovered || layout.showAllLabels) {
                         // Technical telemetry pills below nodes
-                        ctx.font = "bold 9px 'Share Tech Mono', monospace";
+                        ctx.font = "600 9px 'JetBrains Mono', monospace";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "top";
                         var labelText = node.isCenter ? "OTBR (GATEWAY)" : "NODE: " + node.label;
 
                         var textWidth = ctx.measureText(labelText).width;
-                        var boxW = textWidth + 10;
-                        var boxH = 14;
+                        var boxW = textWidth + 12;
+                        var boxH = 15;
                         var boxX = screenX - boxW / 2;
                         var boxY = screenY + node.baseRadius + 8;
 
-                        // Tech background pill
-                        ctx.fillStyle = "rgba(4, 5, 9, 0.9)";
+                        ctx.fillStyle = palette.labelBg;
                         ctx.beginPath();
-                        ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 4) : ctx.rect(boxX, boxY, boxW, boxH);
+                        if (ctx.roundRect) {
+                            ctx.roundRect(boxX, boxY, boxW, boxH, 5);
+                        } else {
+                            ctx.rect(boxX, boxY, boxW, boxH);
+                        }
                         ctx.fill();
 
-                        ctx.strokeStyle = isHovered ? "rgba(6, 182, 212, 0.4)" : "rgba(255, 255, 255, 0.08)";
+                        ctx.strokeStyle = isHovered ? withAlpha(palette.child, 0.5) : palette.labelBorder;
                         ctx.lineWidth = 1;
                         ctx.stroke();
 
-                        ctx.fillStyle = isHovered ? "var(--accent-cyan)" : "#cbd5e1";
-                        ctx.fillText(labelText, screenX, boxY + 2);
+                        ctx.fillStyle = isHovered ? palette.child : palette.labelText;
+                        ctx.fillText(labelText, screenX, boxY + 3);
                     }
                 });
 
-                // 4. Render tooltip
+                // Render tooltip
                 if (hoveredNode) {
                     tooltip.style.display = "block";
                     tooltip.style.left = (rect.left + cx + hoveredNode.x + 15) + "px";
@@ -1015,18 +1052,18 @@
 
                     if (hoveredNode.isCenter) {
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent-cyan); font-family:var(--font-display);">Thread Border Router (Gateway)</strong><br/>
+                            <strong style="color:var(--accent);">Thread Border Router (Gateway)</strong><br/>
                             <span style="color:var(--text-muted);">Extended MAC:</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
-                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:#a78bfa;">0x${hoveredNode.rloc}</span>
+                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:var(--violet);">0x${hoveredNode.rloc}</span>
                         `;
                     } else {
-                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success-color)'>EXCELLENT</span>" :
-                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning-color)'>FAIR</span>" :
-                                     "<span style='color:var(--danger-color)'>POOR</span>";
+                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success)'>EXCELLENT</span>" :
+                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning)'>FAIR</span>" :
+                                     "<span style='color:var(--danger)'>POOR</span>";
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent-cyan); font-family:var(--font-display);">Neighbor Node (Router)</strong><br/>
+                            <strong style="color:var(--accent);">Neighbor Node (Router)</strong><br/>
                             <span style="color:var(--text-muted);">Extended MAC:</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
-                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:#a78bfa;">${hoveredNode.rloc}</span><br/>
+                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:var(--violet);">${hoveredNode.rloc}</span><br/>
                             <span style="color:var(--text-muted);">Route Cost:</span> <span style="font-family:var(--font-mono);">${hoveredNode.pathCost || 0} hop(s) from OTBR</span><br/>
                             ${hoveredNode.nextHopRloc ? `<span style="color:var(--text-muted);">Next Hop:</span> <span style="font-family:var(--font-mono);">${hoveredNode.nextHopRloc}</span><br/>` : ""}
                             ${hoveredNode.role ? `<span style="color:var(--text-muted);">Role:</span> <span style="font-family:var(--font-mono);">${hoveredNode.role}</span><br/>` : ""}
