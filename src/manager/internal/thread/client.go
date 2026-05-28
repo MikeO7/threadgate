@@ -25,11 +25,6 @@ func NewClient(runner otctl.Runner, policy Policy) *Client {
 	return &Client{runner: runner, policy: policy}
 }
 
-// Policy returns the default collection policy for snapshot builds.
-func (c *Client) Policy() Policy {
-	return c.policy
-}
-
 // NodeInfo fetches node identity fields from ot-ctl using strict collection.
 func (c *Client) NodeInfo(ctx context.Context) (NodeInfo, error) {
 	var info NodeInfo
