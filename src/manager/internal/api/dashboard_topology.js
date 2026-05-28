@@ -944,7 +944,7 @@
                     if (p.progress >= 1) {
                         var direction = p.inbound ? "Received" : "Transmitted";
                         var byteCount = Math.floor(Math.random() * 128) + 16;
-                        addLog(`<span style="color: var(--cyan)">[TRAFFIC]</span> ${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: var(--violet);">${p.target.rloc}</span>`);
+                        addLog("TRAFFIC", `${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: var(--violet);">${p.target.rloc}</span>`, "var(--cyan)");
                         particles.splice(i, 1);
                         continue;
                     }
