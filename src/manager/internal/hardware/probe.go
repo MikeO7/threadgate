@@ -2,6 +2,7 @@ package hardware
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"go.bug.st/serial"
@@ -21,9 +22,9 @@ var fcsTable [256]uint16
 var serialOpen = serial.Open
 
 func init() {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		entry := uint16(i)
-		for j := 0; j < 8; j++ {
+		for range 8 {
 			if (entry & 1) != 0 {
 				entry = (entry >> 1) ^ 0x8408
 			} else {
@@ -160,6 +161,7 @@ func parseNCPVersionPayload(payload []byte) (string, bool) {
 
 // ProbeDevice performs a pre-flight Spinel NCP_VERSION GET check on a serial port.
 func ProbeDevice(portPath string, baudrate int) (string, error) {
+	log.Printf("[Hardware] Opening serial port %s for pre-flight Spinel probe at baudrate %d...\n", portPath, baudrate)
 	mode := &serial.Mode{
 		BaudRate: baudrate,
 		DataBits: 8,
@@ -169,9 +171,13 @@ func ProbeDevice(portPath string, baudrate int) (string, error) {
 
 	port, err := serialOpen(portPath, mode)
 	if err != nil {
+		log.Printf("[Hardware] Probe error: failed to open serial port %s: %v\n", portPath, err)
 		return "", fmt.Errorf("failed to open serial port %s: %w", portPath, err)
 	}
-	defer func() { _ = port.Close() }()
+	defer func() {
+		log.Printf("[Hardware] Closing serial port %s probe connection...\n", portPath)
+		_ = port.Close()
+	}()
 
 	// Clear local buffers
 	_ = port.ResetInputBuffer()
@@ -181,15 +187,19 @@ func ProbeDevice(portPath string, baudrate int) (string, error) {
 	spinelCmd := []byte{0x81, 0x02, 0x02}
 	hdlcFrame := EncodeHdlc(spinelCmd)
 
+	log.Printf("[Hardware] Writing Spinel NCP_VERSION GET query HDLC frame (%d bytes) to %s...\n", len(hdlcFrame), portPath)
 	_, err = port.Write(hdlcFrame)
 	if err != nil {
+		log.Printf("[Hardware] Probe error: failed to write to serial port %s: %v\n", portPath, err)
 		return "", fmt.Errorf("failed to write probe frame: %w", err)
 	}
 
 	version, err := readProbeResponse(port)
 	if err != nil {
+		log.Printf("[Hardware] Probe error: failed to read valid response from %s: %v\n", portPath, err)
 		return "", err
 	}
+	log.Printf("[Hardware] Probe success: discovered firmware version: %s\n", version)
 	return version, nil
 }
 
@@ -197,6 +207,7 @@ func readProbeResponse(port serial.Port) (string, error) {
 	readBuf := make([]byte, 1024)
 	var rawData []byte
 	deadline := time.Now().Add(2 * time.Second)
+	log.Println("[Hardware] Waiting up to 2 seconds for Spinel NCP_VERSION response...")
 
 	for time.Now().Before(deadline) {
 		_ = port.SetReadTimeout(200 * time.Millisecond)
@@ -205,6 +216,7 @@ func readProbeResponse(port serial.Port) (string, error) {
 			continue
 		}
 		rawData = append(rawData, readBuf[:n]...)
+		log.Printf("[Hardware] Read %d bytes from serial port, total accumulated payload: %d bytes\n", n, len(rawData))
 		payload, ok := DecodeHdlc(rawData)
 		if !ok {
 			continue
@@ -212,6 +224,7 @@ func readProbeResponse(port serial.Port) (string, error) {
 		if version, ok := parseNCPVersionPayload(payload); ok {
 			return version, nil
 		}
+		log.Printf("[Hardware] Received valid HDLC frame but payload was not a valid NCP_VERSION response: %v\n", payload)
 	}
 
 	return "", fmt.Errorf("spinel probe timed out or returned invalid response (detected CPC/MultiPAN or incorrect firmware)")

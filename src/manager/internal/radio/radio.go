@@ -5,6 +5,7 @@ package radio
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,7 +77,7 @@ func parseSpinelURL(radioURL string, defaultBaud int) (profile, bool) {
 
 	baud := defaultBaud
 	flow := false
-	for _, param := range strings.Split(parts[1], "&") {
+	for param := range strings.SplitSeq(parts[1], "&") {
 		switch {
 		case strings.HasPrefix(param, "uart-baudrate="):
 			val := strings.TrimPrefix(param, "uart-baudrate=")
@@ -144,8 +145,8 @@ func resolveProfile(cfg radioConfig, forceDiscover bool) (profile, error) {
 
 // Binding owns radio resolution, probing, and runtime status updates.
 type Binding struct {
-	cfg      radioConfig
-	status   *runtime.Tracker
+	cfg    radioConfig
+	status *runtime.Tracker
 
 	mu         sync.RWMutex
 	spinelURL  string
@@ -155,8 +156,8 @@ type Binding struct {
 // NewBinding resolves the initial radio URL, probes serial hardware, and updates status.
 func NewBinding(cfg *config.Config, status *runtime.Tracker) (*Binding, error) {
 	b := &Binding{
-		cfg:      configFrom(cfg),
-		status:   status,
+		cfg:    configFrom(cfg),
+		status: status,
 	}
 	if err := b.resolve(false); err != nil {
 		return nil, err
@@ -227,6 +228,11 @@ func probe(cfg radioConfig, radioURL string) (probedVersion, devicePath string, 
 	baudrate := p.Baudrate
 
 	if cfg.MockMode {
+		if os.Getenv("THREADGATE_MOCK_PROBE_ERROR") != "" {
+			mockErr := fmt.Errorf("spinel probe timed out or returned invalid response (detected CPC/MultiPAN or incorrect firmware)")
+			log.Printf("[Radio] Mock mode active: simulating hardware probe error due to THREADGATE_MOCK_PROBE_ERROR: %v\n", mockErr)
+			return "", devicePath, mockErr
+		}
 		probedVersion = "ThreadGateMock/1.0.0; SIMULATION; May 28 2026"
 		log.Printf("[Radio] Mock mode active: skipping hardware probe. Probed version set to simulated: %s\n", probedVersion)
 		return probedVersion, devicePath, nil
@@ -235,7 +241,20 @@ func probe(cfg radioConfig, radioURL string) (probedVersion, devicePath string, 
 	log.Printf("[Radio] Probing physical radio %s at %d baud...\n", devicePath, baudrate)
 	probedVersion, probeErr = hardware.ProbeDevice(devicePath, baudrate)
 	if probeErr != nil {
-		log.Printf("[Radio] Pre-flight radio probe failed: %v\n", probeErr)
+		log.Printf("\n"+
+			"================================================================================\n"+
+			"[DIAGNOSTIC REPORT] PRE-FLIGHT RADIO PROBE FAILURE\n"+
+			"================================================================================\n"+
+			"Device Path: %s (Baudrate: %d)\n"+
+			"Error: %v\n"+
+			"Root Cause: Your USB coordinator has incorrect, Zigbee, or Multi-PAN firmware that does not respond to standard Spinel query commands.\n"+
+			"How to Fix:\n"+
+			"1. Flash your coordinator with RCP (Radio Co-Processor) Thread firmware.\n"+
+			"2. For Silicon Labs devices (SkyConnect, Connect ZBT-1, Sonoff ZBDongle-E), use the Silabs Web Flasher:\n"+
+			"   https://darkxst.github.io/silabs-firmware-builder/\n"+
+			"3. For Nordic Semiconductor devices, refer to Nordic nRF52840 Platform Docs:\n"+
+			"   https://openthread.io/platforms/co-processor\n"+
+			"================================================================================\n", devicePath, baudrate, probeErr)
 	} else {
 		log.Printf("[Radio] Pre-flight radio probe succeeded. RCP Version: %s\n", probedVersion)
 	}

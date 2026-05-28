@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MikeO7/threadgate/src/manager/internal/thread"
-	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
+	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 const (
@@ -51,7 +51,7 @@ func TestHandleNodeInfo(t *testing.T) {
 		t.Errorf("Expected status code 200, got %d", rr.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestHandleDiagnostics(t *testing.T) {
 		t.Errorf("Expected status code 200, got %d", rr.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}

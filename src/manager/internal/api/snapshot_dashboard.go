@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
@@ -15,10 +16,11 @@ type DashboardView struct {
 	CSS          template.CSS
 	TopologyJS   template.JS
 	TopologyJSON template.JS
+	Status       runtime.Status
 }
 
 // DashboardView builds the SSR template model for the dashboard.
-func NewDashboardView(snap topology.Snapshot, port int, mockMode bool) DashboardView {
+func NewDashboardView(snap topology.Snapshot, port int, mockMode bool, status runtime.Status) DashboardView {
 	topologyJSON, _ := MarshalTopologyJSON(snap)
 	return DashboardView{
 		Snapshot:     snap,
@@ -27,6 +29,7 @@ func NewDashboardView(snap topology.Snapshot, port int, mockMode bool) Dashboard
 		CSS:          template.CSS(dashboardCSS),       //nolint:gosec // G203: embedded static stylesheet
 		TopologyJS:   template.JS(dashboardTopologyJS), //nolint:gosec // G203: embedded static script
 		TopologyJSON: topologyJSON,
+		Status:       status,
 	}
 }
 

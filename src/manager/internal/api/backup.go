@@ -16,8 +16,10 @@ func (s *Server) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	log.Println("[API Server] Initiating thread network backup export...")
 	backup, err := s.backup.Export(r.Context())
 	if err != nil {
+		log.Printf("[API Server] Backup export failed: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to export backup: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -28,6 +30,8 @@ func (s *Server) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(backup); err != nil {
 		log.Printf("[API Server] Failed to encode backup: %v\n", err)
+	} else {
+		log.Printf("[API Server] Backup export completed successfully: %s\n", filename)
 	}
 }
 
@@ -36,21 +40,26 @@ func (s *Server) handleBackupImport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	log.Println("[API Server] Initiating thread network backup import from request payload...")
 	backup, err := ParseConfigBackupRequest(r)
 	if err != nil {
+		log.Printf("[API Server] Backup import failed: invalid request body structure: %v\n", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err := ValidateConfigBackup(backup); err != nil {
+		log.Printf("[API Server] Backup import rejected: validation failed: %v\n", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if err := s.backup.Import(r.Context(), backup); err != nil {
+		log.Printf("[API Server] Backup import failed during restoration to OTBR: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to import backup: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	log.Println("[API Server] Backup import successfully restored credentials to OTBR.")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		jsonKeyStatus: jsonStatusOK,
@@ -64,16 +73,20 @@ func (s *Server) handleBackupSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.backup.stateDir == "" {
+		log.Println("[API Server] Backup save failed: backup storage is not configured")
 		http.Error(w, "Backup storage is not configured", http.StatusServiceUnavailable)
 		return
 	}
 
+	log.Printf("[API Server] Saving backup to disk state directory %s...\n", s.backup.stateDir)
 	filename, path, err := s.backup.Save(r.Context())
 	if err != nil {
+		log.Printf("[API Server] Backup save to disk failed: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to save backup: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("[API Server] Backup successfully saved to disk: %s\n", path)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		jsonKeyStatus: jsonStatusOK,
@@ -126,21 +139,30 @@ func (s *Server) handleBackupFileGet(w http.ResponseWriter, r *http.Request, nam
 }
 
 func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request, name string) {
+	//nolint:gosec // G706: filename is validated and safe
+	log.Printf("[API Server] Initiating restore from backup file: %s...\n", name)
 	data, err := s.backup.ReadFile(name)
 	if err != nil {
 		if os.IsNotExist(err) {
+			//nolint:gosec // G706: filename is validated and safe
+			log.Printf("[API Server] Restore failed: backup file %s does not exist\n", name)
 			http.NotFound(w, r)
 			return
 		}
 		if strings.Contains(err.Error(), "invalid backup filename") {
+			//nolint:gosec // G706: filename is validated and safe
+			log.Printf("[API Server] Restore failed: invalid backup filename: %s\n", name)
 			http.Error(w, "Invalid backup filename", http.StatusBadRequest)
 			return
 		}
+		//nolint:gosec // G706: filename is validated and safe
+		log.Printf("[API Server] Restore failed: error reading file %s: %v\n", name, err)
 		http.Error(w, fmt.Sprintf("Failed to read backup: %v", err), http.StatusInternalServerError)
 		return
 	}
 	var backup ConfigBackup
 	if err := json.Unmarshal(data, &backup); err != nil {
+		log.Printf("[API Server] Restore failed: backup file content is not valid JSON: %v\n", err)
 		http.Error(w, fmt.Sprintf("Invalid backup file: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -148,13 +170,17 @@ func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request,
 		backup.Version = backupVersion
 	}
 	if err := ValidateConfigBackup(backup); err != nil {
+		log.Printf("[API Server] Restore failed: backup validation failed: %v\n", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err := s.backup.Import(r.Context(), backup); err != nil {
+		log.Printf("[API Server] Restore failed: failed to import backup into OTBR: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to import backup: %v", err), http.StatusInternalServerError)
 		return
 	}
+	//nolint:gosec // G706: filename is validated and safe
+	log.Printf("[API Server] Successfully restored credentials from backup file: %s\n", name)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		jsonKeyStatus: jsonStatusOK,

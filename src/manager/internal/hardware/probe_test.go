@@ -99,11 +99,11 @@ func (m *mockSerialPort) Write(_ []byte) (int, error) {
 	}
 	return 0, nil
 }
-func (m *mockSerialPort) Drain() error                { return nil }
-func (m *mockSerialPort) ResetInputBuffer() error     { return nil }
-func (m *mockSerialPort) ResetOutputBuffer() error    { return nil }
-func (m *mockSerialPort) SetDTR(_ bool) error         { return nil }
-func (m *mockSerialPort) SetRTS(_ bool) error         { return nil }
+func (m *mockSerialPort) Drain() error             { return nil }
+func (m *mockSerialPort) ResetInputBuffer() error  { return nil }
+func (m *mockSerialPort) ResetOutputBuffer() error { return nil }
+func (m *mockSerialPort) SetDTR(_ bool) error      { return nil }
+func (m *mockSerialPort) SetRTS(_ bool) error      { return nil }
 func (m *mockSerialPort) GetModemStatusBits() (*serial.ModemStatusBits, error) {
 	return &serial.ModemStatusBits{}, nil
 }

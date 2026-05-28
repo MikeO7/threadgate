@@ -21,6 +21,68 @@
         </div>
     </header>
 
+    {{if .Status.ProbeError}}
+    <div class="card error-card" style="max-width: 1400px; margin: 0 auto 1.5rem; padding: 1.5rem; background: rgba(239, 68, 68, 0.02); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); font-family: var(--font-body);">
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(239, 68, 68, 0.1); padding-bottom: 1rem;">
+            <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 0.5rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+                <h3 style="color: #fca5a5; font-size: 1rem; font-weight: 600; margin: 0 0 0.15rem; font-family: var(--font-display);">Radio Hardware Probe Failed</h3>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0; font-family: var(--font-mono);">
+                    Path: <strong style="color: var(--text-main);">{{.Status.RadioPath}}</strong> &middot; <span style="color: #f87171;">{{.Status.ProbeError}}</span>
+                </p>
+            </div>
+        </div>
+
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 1.25rem;">
+                Your USB dongle must run standard <strong>OpenThread RCP (Radio Co-Processor)</strong> firmware. If it currently runs Zigbee or Multiprotocol (Multi-PAN) firmware, select your platform below to flash it:
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+                <!-- Column 1: Silicon Labs -->
+                <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.04); padding: 1.2rem; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase; font-family: var(--font-display);">Silabs</span>
+                            <h5 style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; margin: 0; font-family: var(--font-display);">SkyConnect, ZBT-1, Sonoff ZBDongle-E</h5>
+                        </div>
+                        <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.5;">
+                            <li>Uses EFR32MG21 / MG24 SoC</li>
+                            <li>Requires standard RCP firmware at <strong>460800 baud</strong></li>
+                            <li>Do not use Multiprotocol (CPC) builds</li>
+                        </ul>
+                    </div>
+                    <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; text-decoration: none; padding: 0.5rem; background: rgba(255,255,255,0.03); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Launch Silabs Web Flasher
+                    </a>
+                </div>
+
+                <!-- Column 2: Nordic Semi -->
+                <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.04); padding: 1.2rem; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <span style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase; font-family: var(--font-display);">Nordic</span>
+                            <h5 style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; margin: 0; font-family: var(--font-display);">Nordic nRF52840 Dongle</h5>
+                        </div>
+                        <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.5;">
+                            <li>Requires the standard Nordic <strong>ot-rcp</strong> build</li>
+                            <li>Flash using the <strong>nRF Connect Programmer</strong> desktop app</li>
+                            <li>Write hex in bootloader mode (pulsing red LED)</li>
+                        </ul>
+                    </div>
+                    <a href="https://openthread.io/platforms/co-processor" target="_blank" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; text-decoration: none; padding: 0.5rem; background: rgba(255,255,255,0.03); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Nordic RCP Docs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
     {{if .Warnings}}
     <div style="max-width:1400px;margin:0 auto 1rem;padding:0.75rem 1rem;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);border-radius:12px;color:#fbbf24;font-family:var(--font-mono);font-size:0.85rem;">
         Partial snapshot — {{len .Warnings}} ot-ctl warning(s): {{index .Warnings 0}}

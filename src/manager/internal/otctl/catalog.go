@@ -51,12 +51,12 @@ var (
 	ChildTable    = Command{Label: LabelChildTable, Args: []string{"child", subArgTable}}
 	RouterTable   = Command{Label: LabelRouterTable, Args: []string{"router", subArgTable}}
 
-	DatasetActive         = Command{Label: LabelDataset, Args: []string{subArgDataset, subArgActive, "-x"}}
-	DatasetPending        = Command{Args: []string{subArgDataset, subArgPending, "-x"}}
-	DatasetSetActive      = Command{Args: []string{subArgDataset, "set", subArgActive}}
-	DatasetCommitActive   = Command{Args: []string{subArgDataset, "commit", subArgActive}}
-	DatasetSetPending     = Command{Args: []string{subArgDataset, "set", subArgPending}}
-	DatasetCommitPending  = Command{Args: []string{subArgDataset, "commit", subArgPending}}
+	DatasetActive        = Command{Label: LabelDataset, Args: []string{subArgDataset, subArgActive, "-x"}}
+	DatasetPending       = Command{Args: []string{subArgDataset, subArgPending, "-x"}}
+	DatasetSetActive     = Command{Args: []string{subArgDataset, "set", subArgActive}}
+	DatasetCommitActive  = Command{Args: []string{subArgDataset, "commit", subArgActive}}
+	DatasetSetPending    = Command{Args: []string{subArgDataset, "set", subArgPending}}
+	DatasetCommitPending = Command{Args: []string{subArgDataset, "commit", subArgPending}}
 )
 
 // SnapshotCommands is the full parallel collection used by topology.Build.

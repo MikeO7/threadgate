@@ -32,7 +32,8 @@ sudo sysctl -w net.ipv6.conf.default.accept_ra=2
 ```
 
 ### 2. Deploy Container
-Create a directory on the host and run the container via Docker Compose:
+Create a directory on the host and run the container via Docker Compose. The recommended configuration drops full root privileges (`privileged: true`) in favor of specific Linux kernel capabilities:
+
 ```yaml
 services:
   threadgate:
@@ -40,17 +41,24 @@ services:
     image: ghcr.io/mikeo7/threadgate:latest
     network_mode: host
     restart: unless-stopped
-    privileged: true
+
+    # Secure Hardening: use specific capabilities instead of full privileged mode
+    privileged: false
+    cap_add:
+      - NET_ADMIN   # Required to configure network interfaces and routing tables
+      - SYS_ADMIN   # Required for tun/tap device management (wpan0 creation)
     devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/net/tun:/dev/net/tun  # Grants access to create virtual interfaces
+
     volumes:
       - ./data:/data
-      - /dev:/dev
-      - /lib/modules:/lib/modules
+      - /dev:/dev                   # Required for USB hardware auto-discovery
+      - /lib/modules:/lib/modules   # Required for interface loading
+
     environment:
-      - OTBR_RADIO_URL=                  # Set empty for USB auto-discovery
-      - OTBR_BAUDRATE=460800             # Optimized for smart home networks
-      - OTBR_PORT=8081                   # REST API / Dashboard port
+      - OTBR_RADIO_URL=             # Leave empty for USB auto-discovery
+      - OTBR_BAUDRATE=460800        # Optimized default baudrate for Silicon Labs chips
+      - OTBR_PORT=8081              # REST API and Dashboard port
       - OTBR_AUTO_DISCOVER=true
 ```
 
@@ -59,4 +67,27 @@ Simply run:
 docker compose up -d
 ```
 
-Access the gorgeous diagnostic dashboard by visiting `http://localhost:8081` in your browser!
+Access the diagnostic dashboard by visiting `http://localhost:8081` in your browser!
+
+---
+
+## Security Posture & Recommendations
+
+### REST API & Dashboard Authentication
+To maintain 100% out-of-the-box compatibility with the **Home Assistant OpenThread Border Router integration**, `threadgate`'s REST API and diagnostic web dashboard do **not** enforce built-in username/password authentication. The Home Assistant integration expects a direct, unauthenticated OpenThread REST endpoint to read and configure active network datasets.
+
+### Recommendations for Hardening
+
+1. **Drop Privileged Mode (Highly Recommended)**:
+   Avoid running the container with `privileged: true`. Instead, use the `cap_add` block shown in the compose template above (`NET_ADMIN` and `SYS_ADMIN`) alongside mounting `/dev/net/tun`. This grants the container exactly enough kernel access to configure the Thread virtual routing table (`wpan0`) and serial ports without giving it root control over the host OS.
+
+2. **Network Segregation**:
+   Run `threadgate` on a secure, trusted local home network or a dedicated **IoT VLAN**. Since the REST API on port `8081` allows fetching and writing active Thread credentials, ensure that untrusted guest devices on your LAN do not have access to this port.
+
+3. **Host-Level Firewall Rules**:
+   Since `network_mode: host` is required for Thread router advertisements and mDNS mesh discovery, port `8081` is exposed to all interfaces by default. If you wish to restrict access to only trusted nodes (like a dedicated Home Assistant host), implement host-level firewall rules using `iptables` or `ufw`:
+   ```bash
+   # Example: Block everyone from port 8081, but allow trusted Home Assistant IP
+   sudo ufw deny 8081/tcp
+   sudo ufw allow from <HOME_ASSISTANT_IP> to any port 8081 proto tcp
+   ```

@@ -16,10 +16,10 @@ import (
 
 func mockBackupOtCtl(calledActiveSet, calledActiveCommit, calledPendingSet, calledPendingCommit *bool) FuncOtCtl {
 	handlers := map[string]func() (string, error){
-		otctl.NetworkName.Key(): func() (string, error) { return testNetworkName, nil },
-		otctl.PanID.Key():       func() (string, error) { return "0x1234", nil },
-		otctl.Channel.Key():     func() (string, error) { return "15", nil },
-		otctl.ExtAddr.Key():     func() (string, error) { return "1122334455667788", nil },
+		otctl.NetworkName.Key():    func() (string, error) { return testNetworkName, nil },
+		otctl.PanID.Key():          func() (string, error) { return "0x1234", nil },
+		otctl.Channel.Key():        func() (string, error) { return "15", nil },
+		otctl.ExtAddr.Key():        func() (string, error) { return "1122334455667788", nil },
 		otctl.DatasetActive.Key():  func() (string, error) { return activeDatasetHex, nil },
 		otctl.DatasetPending.Key(): func() (string, error) { return pendingDatasetHex, nil },
 		"dataset set active " + activeDatasetHex: func() (string, error) {

@@ -13,7 +13,7 @@ func normalizeRloc16(rloc string) string {
 
 func parseNeighborTable(output string) []Neighbor {
 	var neighbors []Neighbor
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.Contains(line, "---") || isTableHeaderLine(line) {
 			continue
@@ -103,7 +103,7 @@ func parseMockNeighborLine(line string) (Neighbor, bool) {
 
 func parseChildTable(output string) []ChildEntry {
 	var children []ChildEntry
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.Contains(line, "---") || isTableHeaderLine(line) {
 			continue
@@ -168,7 +168,7 @@ func parseChildPipeLine(line string) (ChildEntry, bool) {
 
 func parseRouterTable(output string) []RouterEntry {
 	var routers []RouterEntry
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.Contains(line, "---") || isTableHeaderLine(line) {
 			continue
@@ -252,7 +252,7 @@ func parseRouterPipeLine(line string) (RouterEntry, bool) {
 
 func parseCounters(output string) []Counter {
 	var list []Counter
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

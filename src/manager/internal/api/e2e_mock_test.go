@@ -69,7 +69,7 @@ func testNodeInfo(t *testing.T, baseURL string) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	var nodeInfo map[string]interface{}
+	var nodeInfo map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&nodeInfo); err != nil {
 		t.Fatalf("Failed to decode node info json: %v", err)
 	}
@@ -188,7 +188,7 @@ func testDiagnostics(t *testing.T, baseURL string) {
 		_ = resp.Body.Close()
 	}()
 
-	var diagInfo map[string]interface{}
+	var diagInfo map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&diagInfo); err != nil {
 		t.Fatalf("Failed to decode diagnostics JSON: %v", err)
 	}

@@ -77,7 +77,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
-	return mux
+	return s.LoggingMiddleware(mux)
 }
 
 // Start launches the HTTP listener.
@@ -111,6 +111,7 @@ func (s *Server) handleNodeInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	info, err := s.threads.NodeInfo(r.Context())
 	if err != nil {
+		log.Printf("[API Server] NodeInfo failed: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -148,6 +149,7 @@ func (s *Server) getActiveDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	dataset, err := s.threads.GetActiveDataset(r.Context())
 	if err != nil {
+		log.Printf("[API Server] getActiveDataset failed: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to fetch active dataset: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -159,17 +161,22 @@ func (s *Server) getActiveDataset(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setActiveDataset(w http.ResponseWriter, r *http.Request) {
 	hexStr, err := parseDatasetHex(r)
 	if err != nil {
+		log.Printf("[API Server] setActiveDataset failed to parse request body: %v\n", err)
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 	if !isValidHex(hexStr) {
+		log.Printf("[API Server] setActiveDataset rejected: invalid dataset format (must be a hex-encoded TLV string)\n")
 		http.Error(w, "Invalid dataset format: must be a hex-encoded TLV string", http.StatusBadRequest)
 		return
 	}
+	log.Printf("[API Server] Attempting to update Active Dataset to hex: %s...\n", hexStr)
 	if err := s.threads.SetActiveDataset(r.Context(), hexStr); err != nil {
+		log.Printf("[API Server] Failed to update Active Dataset in OTBR: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to set active dataset: %v", err), http.StatusInternalServerError)
 		return
 	}
+	log.Println("[API Server] Active Dataset successfully updated in OTBR.")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Active dataset successfully updated"))
 }
@@ -189,6 +196,7 @@ func (s *Server) getPendingDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	dataset, err := s.threads.GetPendingDataset(r.Context())
 	if err != nil {
+		log.Printf("[API Server] getPendingDataset failed: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to fetch pending dataset: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -200,17 +208,22 @@ func (s *Server) getPendingDataset(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setPendingDataset(w http.ResponseWriter, r *http.Request) {
 	hexStr, err := parseDatasetHex(r)
 	if err != nil {
+		log.Printf("[API Server] setPendingDataset failed to parse request body: %v\n", err)
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 	if !isValidHex(hexStr) {
+		log.Printf("[API Server] setPendingDataset rejected: invalid dataset format (must be a hex-encoded TLV string)\n")
 		http.Error(w, "Invalid dataset format: must be a hex-encoded TLV string", http.StatusBadRequest)
 		return
 	}
+	log.Printf("[API Server] Attempting to update Pending Dataset to hex: %s...\n", hexStr)
 	if err := s.threads.SetPendingDataset(r.Context(), hexStr); err != nil {
+		log.Printf("[API Server] Failed to update Pending Dataset in OTBR: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to set pending dataset: %v", err), http.StatusInternalServerError)
 		return
 	}
+	log.Println("[API Server] Pending Dataset successfully updated in OTBR.")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Pending dataset successfully updated"))
 }
@@ -219,6 +232,7 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	diag, err := s.threads.Diagnostics(r.Context())
 	if err != nil {
+		log.Printf("[API Server] Diagnostics failed: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -251,7 +265,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[API Server] Dashboard snapshot partial: %v\n", err)
 	}
 
-	view := NewDashboardView(snap, s.port, s.env.IsMock())
+	var status runtime.Status
+	if s.statusReporter != nil {
+		status = s.statusReporter.GetStatus()
+	}
+	view := NewDashboardView(snap, s.port, s.env.IsMock(), status)
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {
 		log.Printf("[API Server] Failed to execute template: %v\n", err)

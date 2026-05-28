@@ -3,12 +3,13 @@ package api
 import (
 	"testing"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 func TestNewDashboardView(t *testing.T) {
 	snap := topology.BuildFromTables("0xc000", "", "", "")
-	view := NewDashboardView(snap, 9090, true)
+	view := NewDashboardView(snap, 9090, true, runtime.Status{})
 	if view.Port != 9090 || !view.MockMode {
 		t.Fatalf("unexpected dashboard view: port=%d mock=%t", view.Port, view.MockMode)
 	}

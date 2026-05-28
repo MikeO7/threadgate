@@ -76,8 +76,7 @@ func TestSupervisorMock(t *testing.T) {
 	cfg := mockConfig(false)
 	cfg.RadioURL = mockRadioURL
 	s := newTestSupervisor(t, cfg, nil, fakeLauncher{})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	err := s.Start(ctx)
 	if err != nil {
@@ -92,14 +91,13 @@ func TestSupervisorStartWithFakeDaemons(t *testing.T) {
 	binDir := writeFakeCommands(t, map[string]string{
 		"dbus-daemon":  sleepForeverScript,
 		"avahi-daemon": sleepForeverScript,
-		otbrAgentName:   exitZeroScript,
+		otbrAgentName:  exitZeroScript,
 	})
 
 	cfg := mockConfig(false)
 	cfg.Runtime = config.RuntimeModeHardware
 	s := newTestSupervisor(t, cfg, runtime.NewTracker(), fakeLauncher{binDir: binDir})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	if err := s.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)

@@ -17,9 +17,9 @@ type Config struct {
 	AutoDiscover        bool   // Whether to auto-discover USB serial devices
 	StateDir            string // Directory to persist operational state, defaults to /data
 	Runtime             RuntimeMode
-	FlowControl         bool // Whether hardware flow control is enabled (e.g. for SkyConnect)
-	ExplicitFlowControl bool // Whether FlowControl was set explicitly in the environment
-	ExplicitBaudrate    bool // Whether Baudrate was set explicitly in the environment
+	FlowControl         bool   // Whether hardware flow control is enabled (e.g. for SkyConnect)
+	ExplicitFlowControl bool   // Whether FlowControl was set explicitly in the environment
+	ExplicitBaudrate    bool   // Whether Baudrate was set explicitly in the environment
 	BackboneIF          string // Backbone interface for border routing (e.g. eth0, wlan0)
 }
 

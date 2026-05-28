@@ -36,14 +36,14 @@ func mockRouteParent(id int) (nextHopID int, pathCost int) {
 
 func buildMockNeighborTable(count int) string {
 	var b strings.Builder
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
 		id := i + 1
 		extAddr := fmt.Sprintf("%016x", id)
 		rloc16 := fmt.Sprintf("0xc%03x", id)
-		lqi := (i%3) + 1
+		lqi := (i % 3) + 1
 		fmt.Fprintf(
 			&b,
 			"Role:R ExtAddr:%s Rloc16:%s LinkQuality:%d",
@@ -55,14 +55,14 @@ func buildMockNeighborTable(count int) string {
 
 func buildMockChildTable() string {
 	var b strings.Builder
-	for i := 0; i < MockEndDeviceCount; i++ {
+	for i := range MockEndDeviceCount {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
 		id := 100 + i
 		extAddr := fmt.Sprintf("e00000000000%04x", i)
 		rloc16 := fmt.Sprintf("0xc1%02x", i+0x40)
-		lqi := (i%3) + 1
+		lqi := (i % 3) + 1
 		fmt.Fprintf(
 			&b,
 			"ID:%d Rloc16:%s ExtAddr:%s LinkQuality:%d",
@@ -74,7 +74,7 @@ func buildMockChildTable() string {
 
 func buildMockRouterTable(count int) string {
 	var b strings.Builder
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
@@ -82,7 +82,7 @@ func buildMockRouterTable(count int) string {
 		extAddr := fmt.Sprintf("%016x", id)
 		rloc16 := fmt.Sprintf("0xc%03x", id)
 		nextHop, pathCost := mockRouteParent(id)
-		lqi := (i%3) + 1
+		lqi := (i % 3) + 1
 
 		fmt.Fprintf(
 			&b,
@@ -152,18 +152,18 @@ func runMockCommand(state *mockStateData, cmd string) (string, error) {
 }
 
 var mockStateGetters = map[string]func(*mockStateData) string{
-	otctl.State.Key():         func(s *mockStateData) string { return s.state },
-	otctl.Rloc16.Key():        func(s *mockStateData) string { return s.rloc16 },
-	otctl.ExtAddr.Key():       func(s *mockStateData) string { return s.extaddr },
-	otctl.NetworkName.Key():   func(s *mockStateData) string { return s.networkname },
-	otctl.PanID.Key():         func(s *mockStateData) string { return s.panid },
-	otctl.Channel.Key():       func(s *mockStateData) string { return s.channel },
-	otctl.Counters.Key():      func(s *mockStateData) string { return s.counters },
-	otctl.IPAddr.Key():        func(s *mockStateData) string { return s.ipaddr },
-	otctl.NeighborTable.Key(): func(s *mockStateData) string { return s.neighborTable },
-	otctl.ChildTable.Key():    func(s *mockStateData) string { return s.childTable },
+	otctl.State.Key():          func(s *mockStateData) string { return s.state },
+	otctl.Rloc16.Key():         func(s *mockStateData) string { return s.rloc16 },
+	otctl.ExtAddr.Key():        func(s *mockStateData) string { return s.extaddr },
+	otctl.NetworkName.Key():    func(s *mockStateData) string { return s.networkname },
+	otctl.PanID.Key():          func(s *mockStateData) string { return s.panid },
+	otctl.Channel.Key():        func(s *mockStateData) string { return s.channel },
+	otctl.Counters.Key():       func(s *mockStateData) string { return s.counters },
+	otctl.IPAddr.Key():         func(s *mockStateData) string { return s.ipaddr },
+	otctl.NeighborTable.Key():  func(s *mockStateData) string { return s.neighborTable },
+	otctl.ChildTable.Key():     func(s *mockStateData) string { return s.childTable },
 	otctl.RouterTable.Key():    func(s *mockStateData) string { return s.routerTable },
-	otctl.DatasetActive.Key(): func(s *mockStateData) string { return s.activeHex },
+	otctl.DatasetActive.Key():  func(s *mockStateData) string { return s.activeHex },
 	otctl.DatasetPending.Key(): func(s *mockStateData) string { return s.pendingHex },
 }
 

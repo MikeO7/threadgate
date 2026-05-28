@@ -1,4 +1,4 @@
-.PHONY: all test lint build docker check clean tools fmt vuln actionlint tidy coverage coverage-check precommit fix
+.PHONY: all test lint build docker check clean tools fmt vuln actionlint tidy coverage coverage-check precommit fix deadcode
 
 PRE_COMMIT := $(shell command -v pre-commit 2>/dev/null)
 ifeq ($(PRE_COMMIT),)
@@ -84,8 +84,14 @@ docker-build:
 	docker compose build
 
 fix: tidy fmt
+	@echo "🔧 Running go fix..."
+	cd $(SRC_DIR) && go fix ./...
 	@echo "🔧 Auto-fixing linter issues..."
 	-cd $(SRC_DIR) && $(GOLANGCI_LINT) run --fix --timeout 5m --config ../../.golangci.yml ./...
+
+deadcode:
+	@echo "💀 Checking for dead code..."
+	cd $(SRC_DIR) && go run golang.org/x/tools/cmd/deadcode@latest ./...
 
 check: tidy fmt lint vuln actionlint coverage-check
 	@echo "✅ All local checks passed!"
@@ -94,6 +100,7 @@ tools:
 	@echo "🛠️  Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install golang.org/x/vuln/cmd/govulncheck@latest
+	go install golang.org/x/tools/cmd/deadcode@latest
 	@if ! command -v actionlint &> /dev/null; then \
 		if [[ "$$OSTYPE" == "darwin"* ]]; then \
 			brew install actionlint; \
