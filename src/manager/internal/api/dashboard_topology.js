@@ -32,14 +32,23 @@
                 return value.indexOf("0x") === 0 ? value.slice(2) : value;
             }
 
+            // High-performance key-value object map lookup for O(1) node discovery
+            var nodesByRloc = {};
+            var nodesByRlocBuilt = false;
+
             function findNodeByRloc(rloc) {
-                var key = normalizeRloc(rloc);
-                for (var i = 0; i < nodes.length; i++) {
-                    if (normalizeRloc(nodes[i].rloc) === key) {
-                        return nodes[i];
+                if (!nodesByRlocBuilt) {
+                    nodesByRloc = {};
+                    for (var i = 0; i < nodes.length; i++) {
+                        var key = normalizeRloc(nodes[i].rloc);
+                        // Preserve original behavior: return the first matching node
+                        if (nodesByRloc[key] === undefined) {
+                            nodesByRloc[key] = nodes[i];
+                        }
                     }
+                    nodesByRlocBuilt = true;
                 }
-                return null;
+                return nodesByRloc[normalizeRloc(rloc)] || null;
             }
 
             function buildRoutingTree() {

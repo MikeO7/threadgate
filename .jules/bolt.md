@@ -1,0 +1,3 @@
+## 2025-05-28 - Lazy Initialization for JS O(1) Lookups in Topology View
+**Learning:** Initializing an O(1) hash map too early (before the `nodes` array is fully populated dynamically) leads to a functional regression where nodes added later aren't found. At the same time, cache invalidation flags placed inside layout computation loops result in redundant, performance-destroying rebuilds.
+**Action:** When replacing an O(n) array lookup with an O(1) map inside a dynamic loop, use a lazy-loading pattern (`if (!nodesByRlocBuilt) { ... }`) that only builds the hash map upon the very first lookup request. This ensures all nodes are populated prior to map creation and eliminates continuous rebuilding overhead.
