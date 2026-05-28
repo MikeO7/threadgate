@@ -1,3 +1,5 @@
+// Package radio manages hardware radio auto-discovery, resolving spinel URLs,
+// probing serial co-processors, and tracking active radio status.
 package radio
 
 import (
