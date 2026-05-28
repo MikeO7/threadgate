@@ -121,6 +121,7 @@ func (s *Server) handleNodeInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	_ = r
 	w.Header().Set("Content-Type", "application/json")
 	if s.statusReporter == nil {
 		_ = json.NewEncoder(w).Encode(struct {

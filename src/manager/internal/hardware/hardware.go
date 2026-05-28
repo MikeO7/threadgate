@@ -247,7 +247,7 @@ func findTTYNode(usbDevicePath string) string {
 		return ""
 	}
 
-	walkErr := filepath.WalkDir(cleanUSBPath, func(path string, d fs.DirEntry, err error) error {
+	walkErr := filepath.WalkDir(cleanUSBPath, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

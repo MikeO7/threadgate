@@ -7,6 +7,7 @@ import (
 )
 
 func TestAuditHostSafety(t *testing.T) {
+	_ = t
 	audit := AuditHost()
 	_ = audit.Warnings
 }

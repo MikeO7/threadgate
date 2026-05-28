@@ -15,6 +15,7 @@ import (
 )
 
 func TestHandleNodeInfoWriteError(t *testing.T) {
+	_ = t
 	server := NewServerWithOtCtl(8081, FuncOtCtl(mockNodeInfoOtCtl), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/node", nil)
 	server.handleNodeInfo(&failResponseWriter{}, req)
@@ -47,7 +48,7 @@ func TestGetActiveDatasetError(t *testing.T) {
 }
 
 func TestSetActiveDatasetServiceError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, _ ...string) (string, error) {
 		return "", fmt.Errorf("commit failed")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/active", strings.NewReader(activeDatasetHex))

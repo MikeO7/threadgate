@@ -184,6 +184,7 @@ func TestParseDatasetHexQuotedFallback(t *testing.T) {
 }
 
 func TestHandleHealthWriteError(t *testing.T) {
+	_ = t
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("", "v1", "")
 	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
@@ -225,6 +226,7 @@ func TestHandleBackupFileInvalidName(t *testing.T) {
 }
 
 func TestGetActiveDatasetWriteError(t *testing.T) {
+	_ = t
 	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
 		if strings.Join(args, " ") == otctl.DatasetActive.Key() {
 			return activeDatasetHex, nil
@@ -246,6 +248,7 @@ func TestSetPendingDatasetEmptyBody(t *testing.T) {
 }
 
 func TestHandleDashboardWriteError(t *testing.T) {
+	_ = t
 	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	server.handleDashboard(&failResponseWriter{}, req)
