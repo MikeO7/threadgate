@@ -72,12 +72,13 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	if err := dbusCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start dbus-daemon: %w", err)
 	}
-	s.daemons.track(dbusCmd)
+	done := s.daemons.track(dbusCmd)
 	log.Println("[Supervisor] dbus-daemon launched successfully.")
 
 	// Supervise dbus-daemon in background
 	go func() {
 		_ = dbusCmd.Wait()
+		close(done)
 		select {
 		case <-s.ctx.Done():
 			return
@@ -143,11 +144,12 @@ func (s *Supervisor) startAvahi() {
 		log.Printf("[Supervisor] Warning: avahi-daemon could not be started: %v (mDNS features may not function)\n", err)
 		return
 	}
-	s.daemons.track(avCmd)
+	done := s.daemons.track(avCmd)
 	log.Println("[Supervisor] avahi-daemon launched successfully.")
 
 	go func() {
 		_ = avCmd.Wait()
+		close(done)
 		select {
 		case <-s.ctx.Done():
 			return
@@ -183,10 +185,11 @@ func (s *Supervisor) runDbusLoop() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			s.daemons.track(dbusCmd)
+			done := s.daemons.track(dbusCmd)
 			log.Println("[Supervisor] dbus-daemon launched successfully.")
 
 			_ = dbusCmd.Wait()
+			close(done)
 			select {
 			case <-s.ctx.Done():
 				return
@@ -214,10 +217,11 @@ func (s *Supervisor) runAvahiLoop() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			s.daemons.track(avCmd)
+			done := s.daemons.track(avCmd)
 			log.Println("[Supervisor] avahi-daemon launched successfully.")
 
 			_ = avCmd.Wait()
+			close(done)
 			select {
 			case <-s.ctx.Done():
 				return
@@ -305,10 +309,11 @@ func (s *Supervisor) runAgentOnce() {
 		return
 	}
 
-	s.daemons.track(agentCmd)
+	done := s.daemons.track(agentCmd)
 	log.Println("[Supervisor] otbr-agent process started successfully.")
 
 	err := agentCmd.Wait()
+	close(done)
 	if err != nil {
 		errMsg := err.Error()
 		s.setAgentStatus("restarting", errMsg)
