@@ -5,8 +5,9 @@ const (
 	pendingDatasetHex = "0e080000000000019999"
 	mockNetworkName   = "ThreadGate-Mock"
 
-	jsonKeyStatus = "status"
-	jsonStatusOK  = "ok"
+	jsonKeyStatus  = "status"
+	jsonKeyMessage = "message"
+	jsonStatusOK   = "ok"
 
 	testNetworkName = "Thread-Test"
 	testGatewayKey  = "c000"

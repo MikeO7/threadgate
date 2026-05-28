@@ -62,8 +62,8 @@ func (s *Server) handleBackupImport(w http.ResponseWriter, r *http.Request) {
 	log.Println("[API Server] Backup import successfully restored credentials to OTBR.")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		jsonKeyStatus: jsonStatusOK,
-		"message":     "Network credentials restored from backup",
+		jsonKeyStatus:  jsonStatusOK,
+		jsonKeyMessage: "Network credentials restored from backup",
 	})
 }
 
@@ -183,8 +183,8 @@ func (s *Server) handleBackupFileRestore(w http.ResponseWriter, r *http.Request,
 	log.Printf("[API Server] Successfully restored credentials from backup file: %s\n", name)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		jsonKeyStatus: jsonStatusOK,
-		"message":     fmt.Sprintf("Restored from %s", name),
+		jsonKeyStatus:  jsonStatusOK,
+		jsonKeyMessage: fmt.Sprintf("Restored from %s", name),
 	})
 }
 
