@@ -33,6 +33,8 @@ func buildTrafficPath(gatewayRloc, targetRloc string, links []MeshLink, adj map[
 	path := []string{targetRloc}
 	currentKey := targetKey
 
+	// Why: The 32-hop guard limit exceeds the standard max 32-hop diameter of Thread networks,
+	// inherently preventing infinite loops from cyclic routing tables during traversal.
 	for guard := 0; currentKey != gatewayKey && guard < 32; guard++ {
 		if parentLink := findRouteParentLink(links, currentKey); parentLink != nil {
 			path = append([]string{parentLink.FromRloc16}, path...)
@@ -48,6 +50,9 @@ func buildTrafficPath(gatewayRloc, targetRloc string, links []MeshLink, adj map[
 	}
 
 	if normalizeRloc16(path[0]) != gatewayKey {
+		// Why: Thread network topology snapshots from ot-ctl can be transient or slightly
+		// out of sync with actual converged routing tables. The BFS fallback ensures a mathematically
+		// valid path is rendered for the user even if strict next-hop traversal breaks.
 		if bfs := findShortestPath(gatewayKey, targetKey, adj); len(bfs) >= 2 {
 			return bfs
 		}

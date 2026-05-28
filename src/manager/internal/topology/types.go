@@ -43,6 +43,7 @@ type Snapshot struct {
 	Warnings      []string            `json:"warnings,omitempty"`
 }
 
+// Neighbor represents an adjacent Thread device reachable by this node.
 type Neighbor struct {
 	ExtAddr     string `json:"extAddr"`
 	Rloc16      string `json:"rloc16"`
@@ -52,6 +53,7 @@ type Neighbor struct {
 	Role        string `json:"role,omitempty"`
 }
 
+// ChildEntry represents a sleepy or end-device connected directly to this node.
 type ChildEntry struct {
 	ID      int
 	Rloc16  string
@@ -59,6 +61,7 @@ type ChildEntry struct {
 	LQI     int
 }
 
+// RouterEntry represents an active router participating in the mesh backbone.
 type RouterEntry struct {
 	ID          int
 	Rloc16      string
@@ -68,11 +71,13 @@ type RouterEntry struct {
 	LinkQuality int
 }
 
+// Counter represents a generic diagnostic metric (e.g., packet counts).
 type Counter struct {
 	Key string
 	Val string
 }
 
+// MeshLink defines a directed connection between two nodes in the Thread topology.
 type MeshLink struct {
 	FromRloc16 string `json:"from"`
 	ToRloc16   string `json:"to"`
@@ -80,11 +85,13 @@ type MeshLink struct {
 	PathCost   int    `json:"pathCost"`
 }
 
+// RoutingParentEntry encapsulates a child-to-parent mapping for path traversal.
 type RoutingParentEntry struct {
 	Parent string   `json:"parent"`
 	Link   MeshLink `json:"link"`
 }
 
+// RoutingTree models the hierarchical structure of the mesh for visual rendering.
 type RoutingTree struct {
 	ParentOf   map[string]RoutingParentEntry `json:"parentOf"`
 	ChildrenOf map[string][]string           `json:"childrenOf"`
