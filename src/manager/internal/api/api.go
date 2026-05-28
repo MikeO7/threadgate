@@ -307,7 +307,6 @@ func (s *Server) handleTraceFlush(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
 		"path":    tracePath,
-		"message": "Continuous execution trace flushed successfully",
+		"message": "Continuous execution trace flushed successfully", //nolint:goconst
 	})
 }
-
