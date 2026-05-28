@@ -93,7 +93,7 @@ deadcode:
 	@echo "💀 Checking for dead code..."
 	cd $(SRC_DIR) && go run golang.org/x/tools/cmd/deadcode@latest ./...
 
-check: tidy fmt lint vuln actionlint coverage-check
+check: tidy fmt lint vuln actionlint coverage-check deadcode
 	@echo "✅ All local checks passed!"
 
 tools:
