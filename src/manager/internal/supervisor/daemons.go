@@ -34,6 +34,7 @@ func (r *processRegistry) track(cmd *exec.Cmd) chan struct{} {
 	return done
 }
 
+//nolint:gocognit // clean process termination loop
 func (r *processRegistry) stopAll(grace time.Duration) {
 	r.mu.Lock()
 	procs := append([]*managedProcess(nil), r.procs...)
