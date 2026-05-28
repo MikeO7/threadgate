@@ -1,7 +1,7 @@
 # ========================================================
 # Stage 1: Build the static Go Orchestrator (threadgate)
 # ========================================================
-FROM golang:1.25.10-alpine AS builder
+FROM golang:1.26.3-alpine AS builder
 
 WORKDIR /app
 
