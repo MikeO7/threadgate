@@ -391,24 +391,24 @@
         }
 
         function updateChannel(chan) {
-            addLog(`<span style="color: #e11d48;">[SYSTEM]</span> Adjusting active Thread channel to ${chan}...`);
+            addLog("SYSTEM", "Adjusting active Thread channel to " + chan + "...", "#e11d48");
             fetch("/api/node/channel", {
                 method: "PUT",
                 headers: { "Content-Type": "text/plain" },
                 body: chan
             }).then(function(res) {
                 if (res.ok) {
-                    addLog(`<span style="color: #10b981;">[SYSTEM]</span> Successfully updated channel to ${chan}!`);
+                    addLog("SYSTEM", "Successfully updated channel to " + chan + "!", "#10b981");
                     setTimeout(function() {
                         location.reload();
                     }, 1000);
                 } else {
                     res.text().then(function(err) {
-                        addLog(`<span style="color: #ef4444;">[SYSTEM]</span> Error changing channel: ${err}`);
+                        addLog("SYSTEM", "Error changing channel: " + err, "#ef4444");
                     });
                 }
             }).catch(function(err) {
-                addLog(`<span style="color: #ef4444;">[SYSTEM]</span> Network connection failed: ${err}`);
+                addLog("SYSTEM", "Network connection failed: " + err, "#ef4444");
             });
         }
 
@@ -420,7 +420,7 @@
             var bestRating = document.getElementById("recommended-channel-rating");
             var bestText = document.getElementById("recommended-channel-text");
 
-            addLog(`<span style="color: #a855f7;">[SCAN]</span> Initiating IEEE 802.15.4 Channel Energy Scan...`);
+            addLog("SCAN", "Initiating IEEE 802.15.4 Channel Energy Scan...", "#a855f7");
             btn.disabled = true;
             btn.innerText = "Scanning Channels (please wait)...";
             btn.style.opacity = "0.7";
@@ -438,11 +438,11 @@
                     btn.style.opacity = "";
 
                     if (!results || results.length === 0) {
-                        addLog(`<span style="color: #ef4444;">[SCAN]</span> Channel Scan returned no results.`);
+                        addLog("SCAN", "Channel Scan returned no results.", "#ef4444");
                         return;
                     }
 
-                    addLog(`<span style="color: #10b981;">[SCAN]</span> Scan complete! Analyzing interference patterns...`);
+                    addLog("SCAN", "Scan complete! Analyzing interference patterns...", "#10b981");
                     area.style.display = "block";
 
                     // Sort results by RSSI ascending (most negative / lowest noise first)
@@ -471,7 +471,7 @@
                     }
 
                     // Render list of all channels with color coding
-                    details.innerHTML = "";
+                    details.replaceChildren();
                     results.forEach(function(r) {
                         var row = document.createElement("div");
                         row.style.display = "flex";
@@ -485,20 +485,44 @@
                         else if (r.rating === "Fair") badgeColor = "var(--warning-color)";
                         else if (r.rating === "Poor") badgeColor = "var(--danger-color)";
 
-                        row.innerHTML = `
-                            <span style="color: var(--text-main); font-weight: 500;">Ch ${r.channel}</span>
-                            <span>RSSI: <strong style="color: ${badgeColor}; font-weight: 600;">${r.rssi} dBm</strong> <span style="font-size: 0.65rem; padding: 0.1rem 0.3rem; border-radius: 4px; background: rgba(255,255,255,0.03); color: ${badgeColor}; font-family: var(--font-body); text-transform: uppercase; margin-left: 0.25rem;">${r.rating}</span></span>
-                        `;
+                        var channelLabel = document.createElement("span");
+                        channelLabel.style.color = "var(--text-main)";
+                        channelLabel.style.fontWeight = "500";
+                        channelLabel.textContent = "Ch " + String(r.channel);
+                        row.appendChild(channelLabel);
+
+                        var stats = document.createElement("span");
+                        stats.textContent = "RSSI: ";
+                        var rssi = document.createElement("strong");
+                        rssi.style.color = badgeColor;
+                        rssi.style.fontWeight = "600";
+                        rssi.textContent = String(r.rssi) + " dBm";
+                        stats.appendChild(rssi);
+
+                        var ratingBadge = document.createElement("span");
+                        ratingBadge.style.fontSize = "0.65rem";
+                        ratingBadge.style.padding = "0.1rem 0.3rem";
+                        ratingBadge.style.borderRadius = "4px";
+                        ratingBadge.style.background = "rgba(255,255,255,0.03)";
+                        ratingBadge.style.color = badgeColor;
+                        ratingBadge.style.fontFamily = "var(--font-body)";
+                        ratingBadge.style.textTransform = "uppercase";
+                        ratingBadge.style.marginLeft = "0.25rem";
+                        ratingBadge.textContent = String(r.rating);
+                        stats.appendChild(document.createTextNode(" "));
+                        stats.appendChild(ratingBadge);
+                        row.appendChild(stats);
+
                         details.appendChild(row);
                     });
 
-                    addLog(`<span style="color: #a855f7;">[SCAN]</span> Recommendation: Channel ${best.channel} is the clearest frequency.`);
+                    addLog("SCAN", "Recommendation: Channel " + String(best.channel) + " is the clearest frequency.", "#a855f7");
                 })
                 .catch(function(err) {
                     btn.disabled = false;
                     btn.innerText = "🔍 Scan & Recommend Best Channel";
                     btn.style.opacity = "";
-                    addLog(`<span style="color: #ef4444;">[SCAN]</span> Scan failed: ${err.message}`);
+                    addLog("SCAN", "Scan failed: " + err.message, "#ef4444");
                 });
         }
 
@@ -533,11 +557,27 @@
             }
         }
 
-        function addLog(msg) {
+        function addLog(tag, message, tagColor) {
             var term = document.getElementById("terminal");
             var timeStr = new Date().toLocaleTimeString();
             var line = document.createElement("div");
-            line.innerHTML = `<span style="color: #64748b;">[${timeStr}]</span> ${msg}`;
+
+            var timeSpan = document.createElement("span");
+            timeSpan.style.color = "#64748b";
+            timeSpan.textContent = "[" + timeStr + "] ";
+            line.appendChild(timeSpan);
+
+            if (tag) {
+                var label = document.createElement("span");
+                label.style.color = tagColor || "#64748b";
+                label.textContent = "[" + tag + "] ";
+                line.appendChild(label);
+            }
+
+            var msgSpan = document.createElement("span");
+            msgSpan.textContent = message;
+            line.appendChild(msgSpan);
+
             term.appendChild(line);
             term.scrollTop = term.scrollHeight;
             if (term.childNodes.length > 100) {
@@ -548,15 +588,15 @@
         // Periodically inject interesting telemetry events for cyber activity
         setInterval(function() {
             var logEvents = [
-                "<span style='color: #06b6d4;'>[MDNS]</span> advertised border routing service _meshcop._udp via avahi-daemon",
-                "<span style='color: #8b5cf6;'>[DBUS]</span> synced dynamic routing tables with POSIX framework",
-                "<span style='color: #10b981;'>[AUDIT]</span> evaluated mesh link performance: partition is healthy",
-                "<span style='color: #06b6d4;'>[HASS]</span> synchronized system active topology map with Home Assistant integration",
-                "<span style='color: #a855f7;'>[DAEMON]</span> verified Border Router state: LEADER partition verified",
-                "<span style='color: #10b981;'>[HARDWARE]</span> scrutinized sysFS endpoints: zero interface friction detected"
+                { tag: "MDNS", color: "#06b6d4", message: "advertised border routing service _meshcop._udp via avahi-daemon" },
+                { tag: "DBUS", color: "#8b5cf6", message: "synced dynamic routing tables with POSIX framework" },
+                { tag: "AUDIT", color: "#10b981", message: "evaluated mesh link performance: partition is healthy" },
+                { tag: "HASS", color: "#06b6d4", message: "synchronized system active topology map with Home Assistant integration" },
+                { tag: "DAEMON", color: "#a855f7", message: "verified Border Router state: LEADER partition verified" },
+                { tag: "HARDWARE", color: "#10b981", message: "scrutinized sysFS endpoints: zero interface friction detected" }
             ];
             var randomEvent = logEvents[Math.floor(Math.random() * logEvents.length)];
-            addLog(randomEvent);
+            addLog(randomEvent.tag, randomEvent.message, randomEvent.color);
         }, 10000);
         window.__topology = {{.TopologyJSON}};
     </script>

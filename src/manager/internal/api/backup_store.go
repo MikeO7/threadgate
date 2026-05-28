@@ -126,11 +126,38 @@ func (b *BackupStore) backupDir() string {
 }
 
 func validateBackupFilename(name string) error {
-	name = filepath.Base(name)
-	if name == "" || name == "." || strings.Contains(name, "..") {
+	if name == "" || name == "." {
+		return fmt.Errorf("invalid backup filename")
+	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid backup filename")
+	}
+	if filepath.Base(name) != name {
 		return fmt.Errorf("invalid backup filename")
 	}
 	return nil
+}
+
+func (b *BackupStore) backupFilePath(name string) (string, error) {
+	if err := validateBackupFilename(name); err != nil {
+		return "", err
+	}
+	safeName := filepath.Base(name)
+
+	dir, err := filepath.Abs(b.backupDir())
+	if err != nil {
+		return "", fmt.Errorf("backup directory: %w", err)
+	}
+	path, err := filepath.Abs(filepath.Join(dir, safeName))
+	if err != nil {
+		return "", fmt.Errorf("backup path: %w", err)
+	}
+
+	dirPrefix := dir + string(os.PathSeparator)
+	if path != dir && !strings.HasPrefix(path, dirPrefix) {
+		return "", fmt.Errorf("invalid backup filename")
+	}
+	return path, nil
 }
 
 // ListFiles returns JSON backup filenames stored on disk.
@@ -155,12 +182,11 @@ func (b *BackupStore) ListFiles() ([]string, error) {
 
 // ReadFile loads a stored backup by filename.
 func (b *BackupStore) ReadFile(name string) ([]byte, error) {
-	if err := validateBackupFilename(name); err != nil {
+	path, err := b.backupFilePath(name)
+	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(b.backupDir(), name)
-	//nolint:gosec // G304: filename validated above to exclude path traversal
-	return os.ReadFile(path)
+	return os.ReadFile(path) //nolint:gosec // G304: path resolved and confined to backupDir by backupFilePath
 }
 
 // Save exports live credentials and writes them to the backups directory.

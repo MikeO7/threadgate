@@ -71,6 +71,19 @@ func TestValidateBackupFilename(t *testing.T) {
 	if err := validateBackupFilename(".."); err == nil {
 		t.Fatal("expected invalid filename")
 	}
+	if err := validateBackupFilename("../etc/passwd"); err == nil {
+		t.Fatal("expected invalid filename for traversal")
+	}
+	if err := validateBackupFilename(`..\\secret.json`); err == nil {
+		t.Fatal("expected invalid filename for backslash traversal")
+	}
+}
+
+func TestBackupStoreReadFileRejectsPathTraversal(t *testing.T) {
+	store := NewBackupStore(nil, t.TempDir())
+	if _, err := store.ReadFile("../outside.json"); err == nil {
+		t.Fatal("expected path traversal to be rejected")
+	}
 }
 
 func TestHandleBackupExportMethodNotAllowed(t *testing.T) {
