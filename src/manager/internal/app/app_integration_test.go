@@ -99,6 +99,11 @@ func TestAppRunWithProbeError(t *testing.T) {
 		LogLevel:     "info",
 	}
 
+	// Keep hardware runtime but hide system daemons so supervisor boot fails consistently in CI.
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", t.TempDir())
+	t.Cleanup(func() { _ = os.Setenv("PATH", oldPath) })
+
 	oldWait := waitForShutdownHook
 	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
