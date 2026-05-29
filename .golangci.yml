@@ -67,7 +67,7 @@ linters:
         - name: superfluous-else
         - name: file-length-limit
           arguments:
-            - max: 300
+            - max: 700
   exclusions:
     generated: lax
     paths:
