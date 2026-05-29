@@ -111,11 +111,11 @@ func ValidateConfigBackup(backup ConfigBackup) error {
 	if active == "" {
 		return fmt.Errorf("activeDataset is required")
 	}
-	if !isValidHex(active) {
+	if !thread.IsValidDatasetHex(active) {
 		return fmt.Errorf("activeDataset must be a hex-encoded TLV string")
 	}
 	pending := strings.TrimSpace(backup.PendingDataset)
-	if pending != "" && !isValidHex(pending) {
+	if pending != "" && !thread.IsValidDatasetHex(pending) {
 		return fmt.Errorf("pendingDataset must be a hex-encoded TLV string")
 	}
 	return nil

@@ -64,6 +64,11 @@ var (
 	PrefixTable = Command{Label: LabelPrefixTable, Args: []string{"prefix"}}
 
 	ScanEnergy = Command{Label: "scan energy", Args: []string{"scan", "energy", "150"}}
+
+	IfconfigUp   = Command{Args: []string{"ifconfig", "up"}}
+	IfconfigDown = Command{Args: []string{"ifconfig", "down"}}
+	ThreadStart  = Command{Args: []string{"thread", "start"}}
+	ThreadStop   = Command{Args: []string{"thread", "stop"}}
 )
 
 // SnapshotCommands is the full parallel collection used by topology.Build.

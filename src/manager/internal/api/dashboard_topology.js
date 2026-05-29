@@ -76,7 +76,13 @@
                     LQI: n.lqi != null ? n.lqi : (n.LQI || 3),
                     PathCost: n.pathCost != null ? n.pathCost : (n.PathCost || 0),
                     NextHopRloc: n.nextHopRloc || n.NextHopRloc || "",
-                    Role: n.role || n.Role || ""
+                    Role: n.role || n.Role || "",
+                    Manufacturer: n.manufacturer || n.Manufacturer || "",
+                    Model: n.model || n.Model || "",
+                    SwVersion: n.swVersion || n.SwVersion || "",
+                    Battery: n.battery || n.Battery || "",
+                    Availability: n.availability || n.Availability || "",
+                    HassDeviceID: n.hassDeviceId || n.HassDeviceID || ""
                 };
             });
 
@@ -738,7 +744,14 @@
                     pinned: false,
                     baseRadius: 8,
                     angle: 0,
-                    pulsePhase: index * 45
+                    pulsePhase: index * 45,
+                    role: n.Role,
+                    manufacturer: n.Manufacturer,
+                    model: n.Model,
+                    swVersion: n.SwVersion,
+                    battery: n.Battery,
+                    availability: n.Availability,
+                    hassDeviceId: n.HassDeviceID
                 });
             });
 
@@ -1013,7 +1026,34 @@
                     var screenX = cx + node.x;
                     var screenY = cy + node.y;
                     var isHovered = node === hoveredNode;
+
+                    var isLowBattery = false;
+                    if (node.battery) {
+                        var bat = parseInt(node.battery, 10);
+                        if (!isNaN(bat) && bat < 15) {
+                            isLowBattery = true;
+                        }
+                    }
+
                     var coreColor = node.isCenter ? palette.gateway : lqiColor(node.lqi);
+                    if (node.availability === "unavailable" || node.availability === "unknown") {
+                        coreColor = palette.danger;
+                    }
+
+                    // Low battery pulsator (underneath backdrop aura)
+                    if (isLowBattery && !node.isCenter) {
+                        var warnPulse = 1.7 + (Math.sin(node.pulsePhase * 1.5) * 0.25);
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, node.baseRadius * warnPulse, 0, Math.PI * 2);
+                        ctx.fillStyle = withAlpha(palette.warning, 0.15);
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, node.baseRadius * warnPulse, 0, Math.PI * 2);
+                        ctx.strokeStyle = withAlpha(palette.warning, 0.4);
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
 
                     // Glowing backdrop aura
                     var pulseSize = 1.35 + (Math.sin(node.pulsePhase) * 0.15);
@@ -1025,7 +1065,7 @@
                     // Active border highlight
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, node.baseRadius + (isHovered ? 4 : 2), 0, Math.PI * 2);
-                    ctx.strokeStyle = isHovered ? palette.child : withAlpha(palette.labelText, 0.22);
+                    ctx.strokeStyle = isHovered ? palette.child : (isLowBattery ? palette.warning : (node.availability === "unavailable" ? palette.danger : withAlpha(palette.labelText, 0.22)));
                     ctx.lineWidth = 1.5;
                     ctx.stroke();
 
@@ -1086,7 +1126,7 @@
                     if (hoveredNode.isCenter) {
                         var title = hoveredNode.friendlyName ? hoveredNode.friendlyName : "Thread Border Router (Gateway)";
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent);">${title}</strong><br/>
+                            <strong style="color:var(--accent);">🏠 ${title}</strong><br/>
                             <span style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:2px;margin-bottom:6px;line-height:1.3;">This is your internet-to-Thread gateway translator. It connects your Thread smart devices to your home network.</span>
                             <span style="color:var(--text-muted);">Hardware ID (MAC):</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
                             <span style="color:var(--text-muted);">Network Address (RLOC):</span> <span style="font-family:var(--font-mono); color:var(--violet);">0x${hoveredNode.rloc}</span>
@@ -1104,18 +1144,101 @@
                         } else if (hoveredNode.role === "sleepy") {
                             roleDesc = "A battery-powered sensor that sleeps most of the time to save power.";
                         }
-                        
-                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success)'>EXCELLENT (perfect connection)</span>" :
-                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning)'>FAIR (stable connection)</span>" :
-                                     "<span style='color:var(--danger)'>POOR (frequent packet drops)</span>";
+
+                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success);font-weight:600;'>EXCELLENT</span>" :
+                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning);font-weight:600;'>FAIR</span>" :
+                                     "<span style='color:var(--danger);font-weight:600;'>POOR</span>";
+
+                        var icon = "⚪";
+                        var lowerName = (hoveredNode.friendlyName || "").toLowerCase();
+                        var lowerModel = (hoveredNode.model || "").toLowerCase();
+                        if (lowerName.includes("sensor") || lowerModel.includes("sensor") || lowerName.includes("detector") || lowerModel.includes("detector")) {
+                            icon = "🌡️";
+                        }
+                        if (lowerName.includes("bulb") || lowerName.includes("lamp") || lowerName.includes("light") || lowerModel.includes("bulb") || lowerModel.includes("light")) {
+                            icon = "💡";
+                        }
+                        if (lowerName.includes("plug") || lowerModel.includes("plug")) {
+                            icon = "🔌";
+                        }
+                        if (lowerName.includes("lock") || lowerModel.includes("lock")) {
+                            icon = "🔒";
+                        }
+                        if (lowerName.includes("motion") || lowerModel.includes("motion")) {
+                            icon = "🚶";
+                        }
+                        if (lowerName.includes("valve") || lowerName.includes("thermostat") || lowerModel.includes("valve") || lowerModel.includes("thermostat")) {
+                            icon = "🌡️";
+                        }
+
+                        var brandText = "";
+                        if (hoveredNode.manufacturer || hoveredNode.model) {
+                            var brandParts = [];
+                            if (hoveredNode.manufacturer) brandParts.push(hoveredNode.manufacturer);
+                            if (hoveredNode.model) brandParts.push(hoveredNode.model);
+                            var brandFull = brandParts.join(" ");
+                            if (hoveredNode.swVersion) {
+                                brandFull += " (v" + hoveredNode.swVersion + ")";
+                            }
+                            brandText = `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;margin-bottom:6px;line-height:1.3;">${brandFull}</div>`;
+                        }
+
+                        var batteryHtml = "";
+                        if (hoveredNode.battery) {
+                            var batVal = parseInt(hoveredNode.battery, 10);
+                            if (!isNaN(batVal)) {
+                                var batEmoji = batVal < 15 ? "🪫" : "🔋";
+                                var batColor = batVal < 15 ? "var(--danger)" : (batVal < 50 ? "var(--warning)" : "var(--success)");
+                                batteryHtml = `<span style="color:var(--text-muted);">Battery:</span> <span style="font-weight:600;color:${batColor};">${batVal}% ${batEmoji}</span><br/>`;
+                            }
+                        }
+
+                        var availabilityHtml = "";
+                        if (hoveredNode.availability) {
+                            var availColor = "var(--success)";
+                            var availLabel = "ONLINE";
+                            if (hoveredNode.availability === "unavailable" || hoveredNode.availability === "unknown") {
+                                availColor = "var(--danger)";
+                                availLabel = "OFFLINE";
+                            } else if (hoveredNode.availability === "off") {
+                                availColor = "var(--text-subtle)";
+                                availLabel = "OFF";
+                            } else if (hoveredNode.availability === "on") {
+                                availLabel = "ON";
+                            } else {
+                                availLabel = hoveredNode.availability.toUpperCase();
+                            }
+                            availabilityHtml = `<span style="color:var(--text-muted);">HASS Status:</span> <span style="font-weight:600;color:${availColor};">${availLabel}</span><br/>`;
+                        }
+
+                        var hassLinkHtml = "";
+                        if (hoveredNode.hassDeviceId && window.__hassEnabled && window.__hassURL) {
+                            var hassUrl = window.__hassURL;
+                            if (hassUrl.endsWith("/")) {
+                                hassUrl = hassUrl.slice(0, -1);
+                            }
+                            var fullLink = hassUrl + "/config/devices/device/" + hoveredNode.hassDeviceId;
+                            hassLinkHtml = `
+                                <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);text-align:center;">
+                                    <a href="${fullLink}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;gap:4px;width:100%;padding:5px 8px;background:var(--accent-soft);color:var(--accent);border:1px solid rgba(99,102,241,0.2);border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.22)'" onmouseout="this.style.background='var(--accent-soft)'">
+                                        Control in HASS ↗
+                                    </a>
+                                </div>
+                            `;
+                        }
+
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent);">${title}</strong> (${roleLabel})<br/>
-                            ${roleDesc ? `<span style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:2px;margin-bottom:6px;line-height:1.3;">${roleDesc}</span>` : ""}
+                            <strong style="color:var(--accent);">${icon} ${title}</strong> (${roleLabel})<br/>
+                            ${brandText}
+                            ${roleDesc ? `<span style="font-size:0.72rem;color:var(--text-subtle);display:block;margin-top:2px;margin-bottom:6px;line-height:1.3;">${roleDesc}</span>` : ""}
                             <span style="color:var(--text-muted);">Hardware ID (MAC):</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
                             <span style="color:var(--text-muted);">Network Address (RLOC):</span> <span style="font-family:var(--font-mono); color:var(--violet);">${hoveredNode.rloc}</span><br/>
                             <span style="color:var(--text-muted);">Distance (Hops):</span> <span style="font-family:var(--font-mono);">${hoveredNode.pathCost || 0} hop(s) from gateway</span><br/>
                             ${hoveredNode.nextHopRloc ? `<span style="color:var(--text-muted);">Sends traffic via:</span> <span style="font-family:var(--font-mono);">0x${hoveredNode.nextHopRloc}</span><br/>` : ""}
-                            <span style="color:var(--text-muted);">Signal Strength:</span> ${lqiLabel}
+                            <span style="color:var(--text-muted);">Signal Strength:</span> ${lqiLabel}<br/>
+                            ${batteryHtml}
+                            ${availabilityHtml}
+                            ${hassLinkHtml}
                         `;
                     }
                 } else {

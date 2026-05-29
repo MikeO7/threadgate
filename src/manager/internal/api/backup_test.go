@@ -11,10 +11,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/otbrapi"
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
-func mockBackupOtCtl(calledActiveSet, calledActiveCommit, calledPendingSet, calledPendingCommit *bool) FuncOtCtl {
+func mockBackupOtCtl(calledActiveSet, calledActiveCommit, calledPendingSet, calledPendingCommit *bool) thread.FuncRunner {
 	handlers := map[string]func() (string, error){
 		otctl.NetworkName.Key():    func() (string, error) { return testNetworkName, nil },
 		otctl.PanID.Key():          func() (string, error) { return "0x1234", nil },
@@ -120,7 +122,7 @@ func TestHandleBackupImport(t *testing.T) {
 }
 
 func TestHandleBackupImportInvalid(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", nil
 	}), false)
 
@@ -134,7 +136,7 @@ func TestHandleBackupImportInvalid(t *testing.T) {
 
 func TestHandleBackupSave(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -163,7 +165,7 @@ func TestHandleBackupSave(t *testing.T) {
 
 func TestHandleBackupFilesList(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -196,7 +198,7 @@ func TestHandleBackupFilesList(t *testing.T) {
 
 func TestHandleBackupFileRestore(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort), false, dir, nil)
 
 	reqSave := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rrSave := httptest.NewRecorder()
@@ -213,9 +215,11 @@ func TestHandleBackupFileRestore(t *testing.T) {
 
 	calledActiveSet := false
 	calledActiveCommit := false
-	server.threads = NewThreadService(mockBackupOtCtl(
+	server.threads = thread.NewClient(mockBackupOtCtl(
 		&calledActiveSet, &calledActiveCommit, new(bool), new(bool),
-	), CollectBestEffort)
+	), thread.PolicyBestEffort)
+	server.snapSvc.Threads = server.threads
+	server.otbr.Ops = &otbrapi.ClientAdapter{Client: server.threads}
 	server.backup = NewBackupStore(server.threads, dir)
 
 	reqRestore := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+filename, nil)

@@ -1,0 +1,46 @@
+# Local integration stack: Home Assistant + ThreadGate (mock radio, no USB dongle).
+#
+# Quick dev loop:
+#   ./scripts/hass-dev.sh cycle           # reset → up → test
+#   ./scripts/hass-dev.sh fixture-build   # after first good up, saves fast-restore snapshot
+services:
+  homeassistant:
+    container_name: threadgate-ha
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./testdata/ha-config:/config
+    ports:
+      - "8123:8123"
+    networks:
+      - threadgate-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8123/"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
+
+  threadgate:
+    container_name: threadgate
+    image: ghcr.io/mikeo7/threadgate:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - OTBR_MOCK_MODE=true
+      - OTBR_PORT=8081
+      - OTBR_LOG_LEVEL=info
+      # HA URL/token come from /data/hass_config.json after you approve pairing (not before).
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/data
+    networks:
+      - threadgate-net
+    # Startup order is managed by scripts/hass-dev.sh (fixture apply needs HA stopped).
+    restart: unless-stopped
+
+networks:
+  threadgate-net:
+    driver: bridge

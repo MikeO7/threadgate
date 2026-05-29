@@ -5,6 +5,7 @@ import (
 	"html/template"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/snapshot"
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
@@ -14,24 +15,36 @@ type DashboardView struct {
 	Port         int
 	MockMode     bool
 	HassEnabled  bool
+	HassStatus   string
+	HassError    string
+	HassURL      string
+	RadioBadge   snapshot.StatusBadge
+	ThreadBadge  snapshot.StatusBadge
+	HassBadge    snapshot.StatusBadge
 	CSS          template.CSS
 	TopologyJS   template.JS
 	TopologyJSON template.JS
 	Status       runtime.Status
 }
 
-// DashboardView builds the SSR template model for the dashboard.
-func NewDashboardView(snap topology.Snapshot, port int, mockMode bool, status runtime.Status, hassEnabled bool) DashboardView {
-	topologyJSON, _ := MarshalTopologyJSON(snap)
+// NewDashboardView builds the SSR template model from a snapshot dashboard model.
+func NewDashboardView(model snapshot.DashboardModel) DashboardView {
+	topologyJSON, _ := MarshalTopologyJSON(model.Snapshot)
 	return DashboardView{
-		Snapshot:     snap,
-		Port:         port,
-		MockMode:     mockMode,
-		HassEnabled:  hassEnabled,
+		Snapshot:     model.Snapshot,
+		Port:         model.Port,
+		MockMode:     model.MockMode,
+		HassEnabled:  model.HassEnabled,
+		HassStatus:   model.HassStatus,
+		HassError:    model.HassError,
+		HassURL:      model.HassURL,
+		RadioBadge:   model.RadioBadge,
+		ThreadBadge:  model.ThreadBadge,
+		HassBadge:    model.HassBadge,
 		CSS:          template.CSS(dashboardCSS),       //nolint:gosec // G203: embedded static stylesheet
 		TopologyJS:   template.JS(dashboardTopologyJS), //nolint:gosec // G203: embedded static script
 		TopologyJSON: topologyJSON,
-		Status:       status,
+		Status:       model.Status,
 	}
 }
 

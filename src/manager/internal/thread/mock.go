@@ -12,13 +12,19 @@ import (
 const (
 	mockDone           = "Done"
 	mockLeader         = "leader"
+	stateDisabled      = "disabled"
+	stateOffline       = "offline"
 	MockRouterCount    = 32 // Thread max active routers per partition
 	MockDirectCount    = 8
 	MockEndDeviceCount = 12
 	MockMeshNodeCount  = MockRouterCount + MockEndDeviceCount
-	MockNetworkName    = "ThreadGate-Mock"
-	MockActiveDataset  = "0e080000000000010000"
-	MockPendingDataset = "0e080000000000019999"
+	MockNetworkName = "ThreadGate-Mock"
+)
+
+// Mock datasets use a non-default network key so Home Assistant does not raise insecure_thread_network.
+var (
+	MockActiveDataset  = ValidOperationalDatasetHex
+	MockPendingDataset = mustBuildOperationalDatasetHex(MockNetworkKeyHex, 2)
 )
 
 func mockRouteParent(id int) (nextHopID int, pathCost int) {
@@ -177,18 +183,50 @@ var mockStateGetters = map[string]func(*mockStateData) string{
 }
 
 func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {
+	if result, ok := runMockDatasetSetCommand(state, cmd); ok {
+		return result, nil
+	}
+	if result, ok := runMockThreadLifecycleCommand(state, cmd); ok {
+		return result, nil
+	}
+	return "", fmt.Errorf("mock ot-ctl: unknown command: %s", cmd)
+}
+
+func runMockDatasetSetCommand(state *mockStateData, cmd string) (string, bool) {
 	switch {
 	case strings.HasPrefix(cmd, "dataset set active "):
 		state.activeHex = strings.TrimPrefix(cmd, "dataset set active ")
-		return mockDone, nil
+		return mockDone, true
 	case cmd == otctl.DatasetCommitActive.Key():
-		return mockDone, nil
+		return mockDone, true
 	case strings.HasPrefix(cmd, "dataset set pending "):
 		state.pendingHex = strings.TrimPrefix(cmd, "dataset set pending ")
-		return mockDone, nil
+		return mockDone, true
 	case cmd == otctl.DatasetCommitPending.Key():
-		return mockDone, nil
+		return mockDone, true
+	default:
+		return "", false
 	}
+}
 
-	return "", fmt.Errorf("mock ot-ctl: unknown command: %s", cmd)
+func runMockThreadLifecycleCommand(state *mockStateData, cmd string) (string, bool) {
+	switch cmd {
+	case otctl.IfconfigUp.Key(), otctl.ThreadStart.Key():
+		return mockActivateThread(state), true
+	case otctl.IfconfigDown.Key():
+		state.state = stateDisabled
+		return mockDone, true
+	case otctl.ThreadStop.Key():
+		state.state = stateOffline
+		return mockDone, true
+	default:
+		return "", false
+	}
+}
+
+func mockActivateThread(state *mockStateData) string {
+	if state.state == stateDisabled || state.state == stateOffline {
+		state.state = mockLeader
+	}
+	return mockDone
 }

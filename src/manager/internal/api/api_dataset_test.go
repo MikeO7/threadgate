@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
 func TestHandleActiveDatasetGet(t *testing.T) {
-	mockOtCtl := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	mockOtCtl := thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if strings.Join(args, " ") == otctl.DatasetActive.Key() {
 			return activeDatasetHex, nil
 		}
@@ -24,7 +25,7 @@ func TestHandleActiveDatasetGet(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/node/dataset/active", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status code 200, got %d", rr.Code)
@@ -36,10 +37,10 @@ func TestHandleActiveDatasetGet(t *testing.T) {
 	}
 }
 
-func mockActiveOtCtl(calledSet *bool, calledCommit *bool) FuncOtCtl {
+func mockActiveOtCtl(calledSet *bool, calledCommit *bool) thread.FuncRunner {
 	return func(_ context.Context, args ...string) (string, error) {
 		cmdStr := strings.Join(args, " ")
-		if cmdStr == "dataset set active 0e080000000000010000" {
+		if cmdStr == "dataset set active "+activeDatasetHex {
 			*calledSet = true
 			return "", nil
 		}
@@ -59,7 +60,7 @@ func TestHandleActiveDatasetPutRawHex(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), "PUT", "/node/dataset/active", strings.NewReader(activeDatasetHex))
 	rr := httptest.NewRecorder()
 
-	server.handleActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
@@ -79,7 +80,7 @@ func TestHandleActiveDatasetPutJSON(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), "PUT", "/node/dataset/active", bytes.NewBufferString(jsonPayload))
 	rr := httptest.NewRecorder()
 
-	server.handleActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
@@ -91,32 +92,32 @@ func TestHandleActiveDatasetPutJSON(t *testing.T) {
 }
 
 func TestHandleActiveDatasetPutInvalid(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", nil
 	}), false)
 
 	req1 := httptest.NewRequestWithContext(context.Background(), "PUT", "/node/dataset/active", strings.NewReader("not-hex-at-all"))
 	rr1 := httptest.NewRecorder()
-	server.handleActiveDataset(rr1, req1)
+	server.otbr.HandleActiveDataset(rr1, req1)
 	if rr1.Code != http.StatusBadRequest {
 		t.Errorf("Expected bad request for invalid hex, got %d", rr1.Code)
 	}
 
 	req2 := httptest.NewRequestWithContext(context.Background(), "POST", "/node/dataset/active", nil)
 	rr2 := httptest.NewRecorder()
-	server.handleActiveDataset(rr2, req2)
+	server.otbr.HandleActiveDataset(rr2, req2)
 	if rr2.Code != http.StatusMethodNotAllowed {
 		t.Errorf("Expected method not allowed, got %d", rr2.Code)
 	}
 }
 
-func mockPendingOtCtl(calledSet *bool, calledCommit *bool) FuncOtCtl {
+func mockPendingOtCtl(calledSet *bool, calledCommit *bool) thread.FuncRunner {
 	return func(_ context.Context, args ...string) (string, error) {
 		cmdStr := strings.Join(args, " ")
 		if cmdStr == otctl.DatasetPending.Key() {
 			return pendingDatasetHex, nil
 		}
-		if cmdStr == "dataset set pending 0e080000000000019999" {
+		if cmdStr == "dataset set pending "+pendingDatasetHex {
 			*calledSet = true
 			return "", nil
 		}
@@ -136,7 +137,7 @@ func TestHandlePendingDataset(t *testing.T) {
 
 	reqGet := httptest.NewRequestWithContext(context.Background(), "GET", "/node/dataset/pending", nil)
 	rrGet := httptest.NewRecorder()
-	server.handlePendingDataset(rrGet, reqGet)
+	server.otbr.HandlePendingDataset(rrGet, reqGet)
 	if rrGet.Code != http.StatusOK {
 		t.Errorf("Expected GET status 200, got %d", rrGet.Code)
 	}
@@ -146,7 +147,7 @@ func TestHandlePendingDataset(t *testing.T) {
 
 	reqPut := httptest.NewRequestWithContext(context.Background(), "PUT", "/node/dataset/pending", strings.NewReader(pendingDatasetHex))
 	rrPut := httptest.NewRecorder()
-	server.handlePendingDataset(rrPut, reqPut)
+	server.otbr.HandlePendingDataset(rrPut, reqPut)
 	if rrPut.Code != http.StatusOK {
 		t.Errorf("Expected PUT status 200, got %d. Body: %s", rrPut.Code, rrPut.Body.String())
 	}

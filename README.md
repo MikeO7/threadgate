@@ -37,7 +37,7 @@ sudo sysctl -w net.ipv6.conf.default.accept_ra=2
 ```
 
 ### 2. Deploy Container
-Create a directory on the host and run the container via Docker Compose. The recommended configuration drops full root privileges (`privileged: true`) in favor of specific Linux kernel capabilities:
+Create a directory on the host and run the container via Docker Compose. Use specific Linux capabilities instead of full `privileged` mode:
 
 ```yaml
 services:
@@ -76,7 +76,41 @@ docker compose up -d
 
 Access the diagnostic dashboard by visiting `http://localhost:8081` in your browser!
 
-### 3. Home Assistant Device Name Synchronization (Optional)
+### 3. Local Home Assistant + ThreadGate (Docker, no USB dongle)
+
+Spin up Home Assistant and ThreadGate on a shared Docker network, onboard HA, seed mock devices, pair the containers, and run end-to-end smoke tests:
+
+```bash
+make integration
+```
+
+First run takes a minute (onboarding + golden fixture). Later runs reuse `testdata/ha-fixture.tar.gz` and start much faster.
+
+| Command | What it does |
+|---------|----------------|
+| `make integration` | Start stack, configure HA; **manual pairing** (dashboard approve), then verify |
+| `make integration-auto` | Same, but **auto-approves** pairing (test other features without UI) |
+| `make integration-fresh` | Wipe `testdata/`, manual pairing, tests |
+| `make integration-fresh-auto` | Wipe `testdata/`, auto pairing, tests |
+| `make integration-down` | Stop containers (keep config for quick `make integration`) |
+| `make integration-reset` | Stop and delete local HA/ThreadGate test state |
+| `make integration-test` | Re-run smoke tests only |
+
+- Home Assistant: http://127.0.0.1:8123
+- ThreadGate (mock OTBR): http://127.0.0.1:8081
+- Credentials: `testdata/ha-credentials.env` (default user `admin`)
+
+ThreadGate runs with `OTBR_MOCK_MODE=true` so no physical Thread radio is required.
+
+**Pairing (manual, default):** When setup reaches pairing, open **http://127.0.0.1:8081** and click **Approve Connection**. The script waits up to 10 minutes.
+
+**Pairing (auto):** `make integration-auto`, `make integration-fresh-auto`, `./scripts/hass-dev.sh up-auto`, or `PAIR_AUTO_APPROVE=1 ./scripts/hass-dev.sh up`.
+
+With a golden fixture, `hass-dev.sh` starts ThreadGate first, applies the HA config snapshot while Home Assistant is **stopped**, then starts HA once (avoids hanging on a mid-boot `docker stop`). If HA stays down, run `docker compose -f docker-compose.integration.yml up -d homeassistant` and check `docker logs threadgate-ha`.
+
+**Pairing popup:** The banner on http://127.0.0.1:8081 appears only after something calls `POST /api/pair/initiate` (not automatically from HA’s OTBR setup). Use `./scripts/hass-dev.sh up` (manual, default), or `./scripts/hass-dev.sh pair-initiate` while the stack is running. Auto-approve paths (`up-auto`, `make integration-auto`) skip the popup by design.
+
+### 4. Home Assistant Device Name Synchronization (Optional)
 To display user-friendly device names (like `"Living Room Motion Sensor"` or `"Kitchen Thermostat"`) in the system topology map instead of raw hex values (like `0xc001`), ThreadGate can query your Home Assistant device registry.
 
 1. Go to your **Home Assistant Profile** (click your username in the bottom left).
@@ -85,6 +119,30 @@ To display user-friendly device names (like `"Living Room Motion Sensor"` or `"K
 
 > [!NOTE]
 > **Try it in Mock Mode**: If you want to test or preview friendly name rendering in the UI without real hardware or Home Assistant credentials, you can set `OTBR_MOCK_MODE=true` in your environment. ThreadGate will automatically populate a set of simulated devices with realistic friendly names (such as `"Living Room Multi-Sensor"`, `"Kitchen Smart Plug"`, and `"Office Desk Lamp"`) so you can explore the fully-mapped topology!
+
+---
+
+## Home Assistant setup (production)
+
+ThreadGate exposes an **OTBR-compatible REST API** on port `8081`. Home Assistant uses its built-in **Open Thread Border Router** integration (not a separate “ThreadGate” integration name).
+
+1. **Deploy ThreadGate** with `docker-compose.yml` on the host (see host sysctls in section 1). Do **not** set `OTBR_MOCK_MODE` for real hardware.
+2. In Home Assistant: **Settings → Devices & services → Add integration → Open Thread Border Router** → URL `http://<HOST_IP>:8081` (use the machine’s LAN IP; `network_mode: host` does not provide a `threadgate` hostname).
+3. Confirm the OTBR entry shows **Loaded** (not “Failed to set up”). If it failed after an upgrade, reload under **Settings → Devices & services**, or run `hassdev repair-otbr` (see integration scripts below).
+4. **Pairing (optional, for friendly names):** Call `POST http://<HOST_IP>:8081/api/pair/initiate` or use your setup flow, then **Approve** on the ThreadGate dashboard. Saves `/data/hass_config.json`. Use an HA URL reachable **from inside** the ThreadGate container (often `http://127.0.0.1:8123` when HA runs on the same host with host networking).
+5. Let Home Assistant **create a new Thread network** (do not reuse OpenThread web UI default credentials). Restrict port **8081** to the HA host (see Security below).
+
+### Production checklist (real Thread radio)
+
+| Step | Action |
+|------|--------|
+| Host | `net.ipv6.conf.all/default.forwarding=1`, `accept_ra=2` |
+| Radio | RCP Thread firmware on USB coordinator (not Zigbee-only firmware) |
+| Compose | `docker compose up -d` with **mock mode off**, dongle on `/dev/ttyUSB0` (or set `OTBR_RADIO_URL`) |
+| Dashboard | **Radio Connected**, leader/router state (not `ThreadGate-Mock`) |
+| HA OTBR | Integration **Loaded**; no “Insecure Thread network” repair |
+| Security | Firewall: allow `8081/tcp` only from Home Assistant |
+| Matter | Commission one Thread/Matter device end-to-end |
 
 ---
 

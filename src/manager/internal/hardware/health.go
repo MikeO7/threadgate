@@ -68,9 +68,18 @@ func SelfHealHost() {
 }
 
 // AuditHost checks host-level routing configurations and virtual interface capabilities.
-func AuditHost() HostAudit {
-	SelfHealHost()
+// When mockMode is true (integration tests without host network), IPv6 sysctl checks are skipped
+// because bridge containers cannot write /proc/sys and would only produce misleading warnings.
+func AuditHost(mockMode bool) HostAudit {
+	if !mockMode {
+		SelfHealHost()
+	}
 	var audit HostAudit
+	if mockMode {
+		_, err := os.Stat("/dev/net/tun")
+		audit.TunDeviceExists = err == nil
+		return audit
+	}
 	audit.IPv6ForwardingAll = checkSysctl("/proc/sys/net/ipv6/conf/all/forwarding", "1")
 	audit.IPv6ForwardingDefault = checkSysctl("/proc/sys/net/ipv6/conf/default/forwarding", "1")
 

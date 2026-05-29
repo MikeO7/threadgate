@@ -314,6 +314,39 @@ h1 .h1-accent { color: var(--accent); }
     letter-spacing: 0.01em;
 }
 
+.status-badge--success {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.status-badge--cyan {
+    background: color-mix(in srgb, var(--cyan) 12%, transparent);
+    color: var(--cyan);
+}
+
+.status-badge--warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.status-badge--danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.status-badge--muted {
+    background: var(--surface-2);
+    color: var(--text-muted);
+}
+
+.status-badge[data-tooltip] {
+    cursor: help;
+}
+
+.status-badge.status-badge--action {
+    cursor: pointer;
+}
+
 .pulse {
     width: 7px;
     height: 7px;
@@ -322,8 +355,51 @@ h1 .h1-accent { color: var(--accent); }
     animation: pulse-animation 2.4s ease-in-out infinite;
 }
 
+.pulse--success {
+    background-color: var(--success);
+    animation-name: pulse-animation;
+}
+
+.pulse--cyan {
+    background-color: var(--cyan);
+    animation-name: pulse-animation-cyan;
+}
+
+.pulse--warning {
+    background-color: var(--warning);
+    animation-name: pulse-animation-warning;
+}
+
+.pulse--danger {
+    background-color: var(--danger);
+    animation-name: pulse-animation-danger;
+}
+
+.pulse--muted {
+    background-color: var(--text-subtle);
+    animation: none;
+}
+
 @keyframes pulse-animation {
     0% { box-shadow: 0 0 0 0 var(--success-soft); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes pulse-animation-cyan {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cyan) 25%, transparent); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes pulse-animation-warning {
+    0% { box-shadow: 0 0 0 0 var(--warning-soft); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes pulse-animation-danger {
+    0% { box-shadow: 0 0 0 0 var(--danger-soft); }
     70% { box-shadow: 0 0 0 7px transparent; }
     100% { box-shadow: 0 0 0 0 transparent; }
 }
@@ -1114,194 +1190,204 @@ tr:last-child td { border-bottom: none; }
     background-color: var(--surface-3);
 }
 
-.spectrum-modal-body {
-    padding: 0.5rem 0 0 0;
-}
+/* ============================================================
+   RF Spectrum Tab
+   ============================================================ */
 
-.spectrum-grid-layout {
-    display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
-    gap: 1.75rem;
-    align-items: stretch;
-}
+/* ---------- Recommended Channel card ---------- */
+.rec-card { border-left: 3px solid var(--success); }
+.rec-card.is-loading { border-left-color: var(--border-strong); }
 
-@media (max-width: 768px) {
-    .spectrum-grid-layout {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
+.rec-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.25rem 2.5rem;
 }
-
-.spectrum-visualizer-section {
+.rec-card-lead { flex: 1 1 340px; min-width: 0; }
+.rec-card-channel {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+.rec-card-ch-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-subtle);
+}
+.rec-card-ch-num {
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--success);
+}
+.rec-card.is-loading .rec-card-ch-num { color: var(--text-subtle); }
+.rec-card-reason {
+    margin: 0.7rem 0 0 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    max-width: 66ch;
+}
+.rec-card-action {
     display: flex;
     flex-direction: column;
+    gap: 0.65rem;
+    min-width: 230px;
+}
+.rec-card-action .action-btn { margin-top: 0; }
+.auto-tune-btn {
+    background: linear-gradient(135deg, var(--accent), var(--cyan)) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 4px 12px var(--accent-glow) !important;
+}
+.auto-tune-btn:hover {
+    filter: brightness(1.08) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px var(--accent-glow) !important;
+}
+.rec-active-row { padding: 0.35rem 0; border-bottom: none; }
+.rec-optimal-note {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.65rem;
+    border-radius: var(--r-sm);
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 0.82rem;
+    font-weight: 600;
 }
 
-.spectrum-header {
-    margin-bottom: 0.75rem;
-}
+/* ---------- Rating + co-existence pills (extend .lqi-badge) ---------- */
+.lqi-badge.rating-excellent { background: var(--success-soft); color: var(--success); }
+.lqi-badge.rating-good { background: var(--accent-soft); color: var(--accent); }
+.lqi-badge.rating-fair { background: var(--warning-soft); color: var(--warning); }
+.lqi-badge.rating-poor { background: var(--danger-soft); color: var(--danger); }
+.lqi-badge.coex-safe { background: var(--success-soft); color: var(--success); }
+.lqi-badge.coex-overlap { background: var(--danger-soft); color: var(--danger); }
+.lqi-badge.coex-shielded { background: rgba(8, 145, 178, 0.12); color: var(--cyan); }
+.lqi-badge.coex-neutral { background: var(--surface-2); color: var(--text-muted); }
 
-.spectrum-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text);
-    display: block;
-}
-
-.spectrum-subtitle {
-    font-size: 0.75rem;
+/* ---------- Compact action button inside a card header ---------- */
+.h2-title-group { display: inline-flex; align-items: center; gap: 0.4rem; }
+.h2-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
     color: var(--text-muted);
-    display: block;
-    margin-top: 0.15rem;
-}
-
-.spectrum-analyzer-container {
-    margin: 0.5rem 0;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 1rem 1rem 1rem 3.5rem; /* Left padding for Y-axis */
-    position: relative;
-    height: 220px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
+.h2-action-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+.h2-action-btn:disabled { opacity: 0.6; cursor: progress; }
 
+/* ---------- Spectrum chart ---------- */
+.spectrum-legend { margin-top: -0.4rem; margin-bottom: 0.9rem; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.legend-dot.best { background: var(--success); }
+.legend-dot.active { background: var(--cyan); }
+
+.spectrum-chart-frame {
+    position: relative;
+    height: 230px;
+    padding-left: 3.25rem;
+}
 .chart-y-axis {
     position: absolute;
-    left: 0.75rem;
-    top: 1rem;
-    bottom: 2rem; /* space for X label */
-    width: 2.5rem;
+    left: 0;
+    top: 0;
+    bottom: 1.9rem;
+    width: 2.75rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    align-items: flex-end;
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     color: var(--text-subtle);
-    border-right: 1px dashed var(--border);
     pointer-events: none;
 }
-
-.y-label {
-    line-height: 1;
-}
+.y-label { line-height: 1; }
 
 .spectrum-chart {
     display: flex;
-    justify-content: space-between;
     align-items: flex-end;
+    justify-content: space-between;
+    gap: 5px;
     height: 100%;
-    gap: 6px;
-    padding-bottom: 0.25rem;
     border-bottom: 1px solid var(--border-strong);
-    position: relative;
 }
-
-/* Horizontal helper lines behind bars */
-.spectrum-chart::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 33.33%;
-    height: 1px;
-    border-top: 1px dashed rgba(15, 23, 42, 0.05);
-    pointer-events: none;
-}
-.spectrum-chart::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 66.66%;
-    height: 1px;
-    border-top: 1px dashed rgba(15, 23, 42, 0.05);
-    pointer-events: none;
-}
-
 .spectrum-bar-wrapper {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 100%;
     justify-content: flex-end;
-    position: relative;
+    height: 100%;
     cursor: pointer;
-    z-index: 2;
 }
-
 .spectrum-bar {
     width: 100%;
     min-height: 4px;
     border-radius: 4px 4px 0 0;
-    transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s, box-shadow 0.2s;
-    background: var(--text-subtle);
-    position: relative;
+    background: var(--surface-3);
+    border: 1px solid var(--border-strong);
+    border-bottom: none;
+    transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s;
 }
-
-.spectrum-bar-wrapper:hover .spectrum-bar {
-    filter: brightness(1.1);
-}
-
-.spectrum-bar-wrapper.active .spectrum-bar {
-    box-shadow: 0 0 14px currentColor, inset 0 0 0 1px rgba(255,255,255,0.2);
-    outline: 2px solid var(--text);
-    outline-offset: 1px;
-}
-
-/* Pulsing golden aura glow and gradient for recommended channel bar */
-.spectrum-bar.recommended-bar {
-    background: linear-gradient(180deg, var(--warning) 0%, var(--success) 100%) !important;
-    box-shadow: 0 0 15px rgba(217, 119, 6, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(217, 119, 6, 0.4);
-    animation: pulse-aura 2s infinite alternate;
-}
-
-@keyframes pulse-aura {
-    0% {
-        box-shadow: 0 0 8px rgba(217, 119, 6, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-        filter: brightness(1.0);
-    }
-    100% {
-        box-shadow: 0 0 20px rgba(217, 119, 6, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-        filter: brightness(1.1);
-    }
-}
-
-.spectrum-bar-label.recommended {
-    color: var(--warning) !important;
-    font-weight: 700;
-}
+.spectrum-bar-wrapper:hover .spectrum-bar { filter: brightness(0.95); }
+.spectrum-bar-wrapper.is-best .spectrum-bar { background: var(--success); border-color: var(--success); }
+.spectrum-bar-wrapper.is-current .spectrum-bar { background: var(--cyan); border-color: var(--cyan); }
+.spectrum-bar-wrapper.selected .spectrum-bar { outline: 2px solid var(--text); outline-offset: 2px; }
 
 .spectrum-bar-label {
-    margin-top: 0.4rem;
-    font-size: 0.72rem;
+    margin-top: 0.45rem;
+    font-size: 0.68rem;
     font-weight: 600;
     font-family: var(--font-mono);
     color: var(--text-muted);
-    transition: color 0.15s;
 }
+.spectrum-bar-wrapper.is-best .spectrum-bar-label { color: var(--success); font-weight: 700; }
+.spectrum-bar-wrapper.is-current .spectrum-bar-label { color: var(--cyan); font-weight: 700; }
+.spectrum-bar-wrapper:hover .spectrum-bar-label { color: var(--text); }
 
-.spectrum-bar-wrapper:hover .spectrum-bar-label,
-.spectrum-bar-wrapper.active .spectrum-bar-label {
-    color: var(--text);
+.bar-caption {
+    margin-top: 0.2rem;
+    font-size: 0.56rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
 }
+.bar-caption.best { color: var(--success); }
+.bar-caption.active { color: var(--cyan); }
 
+/* ---------- Wi-Fi overlap lane ---------- */
 .wifi-overlap-bands {
     display: flex;
-    gap: 6px;
-    margin-top: 0.5rem;
+    gap: 5px;
+    padding-left: 3.25rem;
 }
-
 .wifi-band {
     text-align: center;
     font-size: 0.65rem;
     font-weight: 600;
-    padding: 0.35rem 0.15rem;
+    padding: 0.4rem 0.15rem;
     border-radius: var(--r-sm);
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -1309,482 +1395,21 @@ tr:last-child td { border-bottom: none; }
     overflow: hidden;
     text-overflow: ellipsis;
     user-select: none;
-    transition: transform 0.15s, opacity 0.15s;
 }
-.wifi-band:hover {
-    transform: translateY(-1px);
-    opacity: 0.95;
-}
-
 .wifi-band.overlap-ch1, .wifi-band.overlap-ch6, .wifi-band.overlap-ch11 {
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px dashed rgba(220, 38, 38, 0.25);
+    background: var(--danger-soft);
     color: var(--danger);
 }
-.wifi-band.gap {
-    background: rgba(5, 150, 105, 0.08);
-    border: 1px dashed rgba(5, 150, 105, 0.25);
-    color: var(--success);
-}
-.wifi-band.shielded {
-    background: rgba(8, 145, 178, 0.08);
-    border: 1px dashed rgba(8, 145, 178, 0.25);
-    color: var(--cyan);
-}
+.wifi-band.gap { background: var(--success-soft); color: var(--success); }
+.wifi-band.shielded { background: rgba(8, 145, 178, 0.12); color: var(--cyan); }
 
-.spectrum-details-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 1.25rem;
-}
+/* ---------- Inspector ---------- */
+#spectrum-tab .section-note { min-height: 3.4rem; }
+.cyber-button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.cyber-button:disabled:hover { background: var(--accent); transform: none; }
 
-.rec-section-header {
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0.4rem;
-}
-
-.selected-channel-card {
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-md);
-    padding: 1.25rem;
-    flex-grow: 1;
-    margin-bottom: 1.25rem;
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.channel-main-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.channel-number-large {
-    font-size: 1.85rem;
-    font-weight: 800;
-    color: var(--text);
-    font-family: var(--font-sans);
-    letter-spacing: -0.02em;
-}
-
-.congestion-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.congestion-label-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.rssi-val {
-    font-family: var(--font-mono);
-    color: var(--text);
-}
-
-.congestion-bar-bg {
-    height: 8px;
-    background: var(--surface-3);
-    border-radius: 99px;
-    overflow: hidden;
-}
-
-.congestion-bar-fill {
-    height: 100%;
-    border-radius: 99px;
-    background: var(--accent);
-    transition: width 0.4s ease, background-color 0.3s;
-}
-
-.congestion-subtext {
-    font-size: 0.72rem;
-    color: var(--text-subtle);
-}
-
-.profile-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    font-size: 0.78rem;
-}
-
-.profile-label {
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.profile-value {
-    font-weight: 600;
-    color: var(--text);
-}
-
-.recommendation-text-box {
-    font-size: 0.82rem;
-    line-height: 1.5;
-    color: var(--text-muted);
-    background: var(--surface-2);
-    padding: 0.85rem;
-    border-radius: var(--r-sm);
-    border: 1px solid var(--border);
-    overflow-y: auto;
-    max-height: 130px;
-    flex-grow: 1;
-}
-
-.modal-action-row {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.modal-action-row button {
-    flex: 1;
-    white-space: nowrap;
-}
-
-.success-btn {
-    background: var(--success);
-    color: #fff;
-    border: none;
-    font-weight: 600;
-}
-.success-btn:hover {
-    background: #047857; /* slightly darker green */
-    transform: translateY(-1px);
-}
-
-/* ============================================================
-   RF Spectrum Tab — polished layout
-   ============================================================ */
-.spectrum-card {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 1.75rem;
-}
-
-.spectrum-tab-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 1.1rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-.spectrum-tab-title {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--text);
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    border: none;
-    padding: 0;
-}
-.spectrum-tab-title svg { color: var(--accent); }
-.spectrum-tab-sub {
-    margin: 0.3rem 0 0 0;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-}
-.spectrum-refresh-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0;
-    width: auto;
-    padding: 0.6rem 1.15rem;
-}
-
-/* ---------- Recommended Channel Hero ---------- */
-.rec-hero {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    padding: 1.5rem 1.75rem;
-    border-radius: var(--r-lg);
-    border: 1px solid rgba(5, 150, 105, 0.32);
-    background:
-        radial-gradient(120% 140% at 0% 0%, rgba(217, 119, 6, 0.10), transparent 55%),
-        linear-gradient(135deg, rgba(5, 150, 105, 0.12), rgba(99, 102, 241, 0.07));
-    box-shadow: 0 8px 28px rgba(5, 150, 105, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-.rec-hero-aura {
-    position: absolute;
-    top: -40%;
-    left: -10%;
-    width: 45%;
-    height: 200%;
-    background: radial-gradient(closest-side, rgba(217, 119, 6, 0.22), transparent);
-    filter: blur(18px);
-    pointer-events: none;
-    animation: rec-hero-pulse 3.2s ease-in-out infinite alternate;
-}
-@keyframes rec-hero-pulse {
-    0% { opacity: 0.5; transform: translateX(0); }
-    100% { opacity: 0.9; transform: translateX(12%); }
-}
-.rec-hero.is-loading { border-color: var(--border-strong); background: var(--surface-2); }
-.rec-hero.is-loading .rec-hero-aura { display: none; }
-.rec-hero.is-optimal {
-    border-color: rgba(5, 150, 105, 0.4);
-    background: linear-gradient(135deg, rgba(5, 150, 105, 0.14), rgba(5, 150, 105, 0.04));
-}
-
-.rec-hero-main { position: relative; z-index: 1; flex: 1 1 320px; min-width: 0; }
-.rec-hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--warning);
-}
-.rec-hero-eyebrow svg { color: var(--warning); }
-.rec-hero-headline {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    margin: 0.35rem 0 0.5rem 0;
-    flex-wrap: wrap;
-}
-.rec-hero-channel {
-    font-size: 2.4rem;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.03em;
-    color: var(--text);
-}
-.rec-hero-channel #rec-hero-num { color: var(--success); }
-.rec-hero.is-loading .rec-hero-channel #rec-hero-num { color: var(--text-subtle); }
-.rec-hero-rating-badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.28rem 0.7rem;
-    border-radius: 99px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--surface-3);
-    color: var(--text-muted);
-}
-.rec-hero-rating-badge.rating-excellent { background: var(--success-soft); color: var(--success); }
-.rec-hero-rating-badge.rating-good { background: var(--accent-soft); color: var(--accent); }
-.rec-hero-rating-badge.rating-fair { background: var(--warning-soft); color: var(--warning); }
-.rec-hero-rating-badge.rating-poor { background: var(--danger-soft); color: var(--danger); }
-.rec-hero-reason {
-    margin: 0;
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: var(--text-muted);
-    max-width: 52ch;
-}
-
-.rec-hero-action {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.6rem;
-    min-width: 220px;
-}
-.rec-hero-current {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0 0.15rem;
-}
-.rec-hero-current-label {
-    font-size: 0.72rem;
-    color: var(--text-subtle);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.rec-hero-current-val {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: var(--text);
-}
-.rec-hero-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1.25rem;
-    border: none;
-    border-radius: var(--r-sm);
-    background: var(--success);
-    color: #fff;
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.30);
-    transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
-}
-.rec-hero-btn:hover { background: #047857; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5, 150, 105, 0.38); }
-.rec-hero-btn:active { transform: translateY(0); }
-.rec-hero-status {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1.25rem;
-    border-radius: var(--r-sm);
-    background: var(--success-soft);
-    color: var(--success);
-    font-weight: 700;
-    font-size: 0.88rem;
-}
-
-/* ---------- Spectrum chart header + legend ---------- */
-.spectrum-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-}
-.spectrum-legend { display: flex; gap: 0.9rem; flex-shrink: 0; }
-.spectrum-legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-.spectrum-legend-item .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-.spectrum-legend-item .dot-best { background: linear-gradient(180deg, var(--warning), var(--success)); }
-.spectrum-legend-item .dot-current { background: var(--cyan); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--cyan); }
-
-/* Give the analyzer a bit more room in the full tab */
-#spectrum-tab .spectrum-analyzer-container { height: 300px; padding-top: 2rem; }
-
-/* Floating BEST tag above recommended bar */
-.spectrum-best-tag {
-    position: absolute;
-    top: -1.4rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    font-size: 0.58rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: #fff;
-    background: linear-gradient(135deg, var(--warning), var(--success));
-    padding: 0.15rem 0.4rem;
-    border-radius: 99px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
-    z-index: 4;
-}
-.spectrum-best-tag svg { flex-shrink: 0; }
-
-/* Current active channel marker */
-.spectrum-active-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--cyan);
-    margin-right: 0.3rem;
-    vertical-align: middle;
-    box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.25);
-}
-.spectrum-bar-wrapper.is-current .spectrum-bar-label { color: var(--cyan); font-weight: 700; }
-.spectrum-bar-wrapper.is-current .spectrum-bar::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 4px 4px 0 0;
-    outline: 1.5px dashed var(--cyan);
-    outline-offset: 1px;
-    pointer-events: none;
-}
-
-/* ---------- Wi-Fi overlap section ---------- */
-.wifi-overlap-section { margin-top: 1rem; }
-.wifi-overlap-title {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    display: block;
-    margin-bottom: 0.45rem;
-}
-
-/* ---------- Inspector polish ---------- */
-.channel-badge-stack { display: flex; align-items: center; gap: 0.45rem; }
-.best-inline-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.62rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #fff;
-    background: linear-gradient(135deg, var(--warning), var(--success));
-    padding: 0.2rem 0.5rem;
-    border-radius: 99px;
-}
-.spectrum-deploy-btn {
-    margin-top: 0;
-    border-radius: var(--r-sm);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 0.82rem;
-    padding: 0.7rem 1rem;
-    width: 100%;
-}
-
-@media (max-width: 640px) {
-    .rec-hero { padding: 1.25rem; }
-    .rec-hero-action { min-width: 100%; }
-    .rec-hero-channel { font-size: 2rem; }
+@media (max-width: 768px) {
+    #spectrum-tab .col-8, #spectrum-tab .col-4 { grid-column: span 12; }
 }
 
 /* ---------- DOM Hover Tooltips (Normie-friendly) ---------- */
@@ -1830,3 +1455,126 @@ tr:last-child td { border-bottom: none; }
     flex-shrink: 0;
 }
 
+/* ---------- HASS Pairing Toast (fixed overlay, direct child of body) ---------- */
+#hass-pairing-toast.pairing-toast-hidden {
+    display: none !important;
+}
+
+#hass-pairing-toast.pairing-toast-visible {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100000;
+    width: min(640px, calc(100vw - 2rem));
+    margin: 0;
+    pointer-events: auto;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(6, 182, 212, 0.22));
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    border-radius: var(--r-lg);
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: pulseGlow 3s infinite alternate, slideDown 0.4s ease-out;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 8px 32px 0 rgba(99, 102, 241, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    100% {
+        box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        border-color: rgba(6, 182, 212, 0.6);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.pairing-toast-content {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.pairing-toast-icon {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--cyan);
+    padding: 0.65rem;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+}
+
+.pairing-toast-text {
+    flex-grow: 1;
+}
+
+.pairing-toast-title {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    text-transform: none;
+}
+
+.pairing-toast-sub {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.pairing-toast-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.pairing-action-btn {
+    padding: 0.6rem 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.2s ease;
+}
+
+.pairing-action-btn.approve {
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.pairing-action-btn.approve:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
+}
+
+.pairing-action-btn.deny {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.pairing-action-btn.deny:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    border-color: var(--border-strong);
+}

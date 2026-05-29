@@ -15,19 +15,13 @@ import (
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
-const (
-	constActive     = "active"
-	constPending    = "pending"
-	constLeaderTest = "leader"
-)
-
 func mockNodeInfoOtCtl(_ context.Context, args ...string) (string, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("no args")
 	}
 	switch args[0] {
 	case otctl.State.Args[0]:
-		return constLeaderTest, nil
+		return threadStateLeader, nil
 	case otctl.Rloc16.Args[0]:
 		return "0xc000", nil
 	case otctl.ExtAddr.Args[0]:
@@ -41,7 +35,7 @@ func mockNodeInfoOtCtl(_ context.Context, args ...string) (string, error) {
 }
 
 func TestHandleNodeInfo(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(mockNodeInfoOtCtl), false)
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(mockNodeInfoOtCtl), false)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/node", nil)
 	rr := httptest.NewRecorder()
 
@@ -56,7 +50,7 @@ func TestHandleNodeInfo(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if resp["State"] != constLeaderTest {
+	if resp["State"] != threadStateLeader {
 		t.Errorf("Expected State 'leader', got %v", resp["State"])
 	}
 	if resp["NetworkName"] != testNetworkName {
@@ -68,7 +62,7 @@ func TestHandleNodeInfo(t *testing.T) {
 }
 
 func TestHandleDiagnostics(t *testing.T) {
-	mockOtCtl := FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	mockOtCtl := thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if len(args) == 0 {
 			return "", nil
 		}
@@ -104,7 +98,7 @@ func TestHandleDiagnostics(t *testing.T) {
 }
 
 func TestHandleTopology(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), true)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), true)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/topology", nil)
 	rr := httptest.NewRecorder()
 
@@ -127,7 +121,7 @@ func TestHandleTopology(t *testing.T) {
 }
 
 func TestHandleDashboardUsesConfiguredPort(t *testing.T) {
-	server := NewServerWithThread(9090, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(9090, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	rr := httptest.NewRecorder()
 
@@ -143,7 +137,7 @@ func TestHandleDashboardUsesConfiguredPort(t *testing.T) {
 }
 
 func TestMockMeshTables(t *testing.T) {
-	svc := NewThreadService(NewMockOtCtl(), CollectBestEffort)
+	svc := thread.NewClient(thread.NewMock(), thread.PolicyBestEffort)
 	snap, err := svc.BuildSnapshot(context.Background())
 	if err != nil {
 		t.Fatalf("BuildSnapshot failed: %v", err)
@@ -164,7 +158,7 @@ func TestHandleHealth(t *testing.T) {
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "")
 
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/health", nil)
 	rr := httptest.NewRecorder()
 

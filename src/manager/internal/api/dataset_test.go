@@ -1,72 +1,63 @@
 package api
 
 import (
-	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
-func TestExtractTLVFromPayload(t *testing.T) {
-	tests := []struct {
-		name    string
-		payload DatasetPayload
-		want    string
-	}{
-		{"active tlvs", DatasetPayload{ActiveDatasetTlvs: " aa "}, "aa"},
-		{"active dataset", DatasetPayload{ActiveDataset: "bb"}, "bb"},
-		{"pending tlvs", DatasetPayload{PendingDatasetTlvs: "cc"}, "cc"},
-		{"pending dataset", DatasetPayload{PendingDataset: "dd"}, "dd"},
-		{"empty", DatasetPayload{}, ""},
-	}
-	for _, tt := range tests {
-		if got := extractTLVFromPayload(tt.payload); got != tt.want {
-			t.Errorf("%s: got %q want %q", tt.name, got, tt.want)
-		}
-	}
-}
-
-func TestParseDatasetHex(t *testing.T) {
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(`{"ActiveDatasetTlvs":"`+activeDatasetHex+`"}`))
-	got, err := parseDatasetHex(req)
+func TestParseDatasetHTTPBody(t *testing.T) {
+	body := []byte(`{"ActiveDatasetTlvs":"` + activeDatasetHex + `"}`)
+	ds, err := thread.ParseDatasetHTTPBody(body)
 	if err != nil {
-		t.Fatalf("parseDatasetHex failed: %v", err)
+		t.Fatalf("ParseDatasetHTTPBody failed: %v", err)
 	}
-	if got != activeDatasetHex {
-		t.Errorf("got %q want %q", got, activeDatasetHex)
+	if ds.Hex() != activeDatasetHex {
+		t.Errorf("got %q want %q", ds.Hex(), activeDatasetHex)
 	}
 
-	reqRaw := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(activeDatasetHex))
-	gotRaw, err := parseDatasetHex(reqRaw)
+	gotRaw, err := thread.ParseDatasetHTTPBody([]byte(activeDatasetHex))
 	if err != nil {
-		t.Fatalf("parseDatasetHex raw failed: %v", err)
+		t.Fatalf("ParseDatasetHTTPBody raw failed: %v", err)
 	}
-	if gotRaw != activeDatasetHex {
-		t.Errorf("got %q want %q", gotRaw, activeDatasetHex)
+	if gotRaw.Hex() != activeDatasetHex {
+		t.Errorf("got %q want %q", gotRaw.Hex(), activeDatasetHex)
 	}
 
-	reqEmpty := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", bytes.NewReader(nil))
-	if _, err := parseDatasetHex(reqEmpty); err == nil {
+	if _, err := thread.ParseDatasetHTTPBody(nil); err == nil {
 		t.Error("expected error for empty body")
 	}
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(`"`+activeDatasetHex+`"`))
+	bodyBytes, _ := io.ReadAll(req.Body)
+	gotQuoted, err := thread.ParseDatasetHTTPBody(bodyBytes)
+	if err != nil {
+		t.Fatalf("expected quoted fallback parse, got error: %v", err)
+	}
+	if gotQuoted.Hex() != activeDatasetHex {
+		t.Fatalf("unexpected fallback body: %q", gotQuoted.Hex())
+	}
 }
 
-func TestIsValidHex(t *testing.T) {
-	if !isValidHex(activeDatasetHex) {
+func TestIsValidDatasetHex(t *testing.T) {
+	if !thread.IsValidDatasetHex(activeDatasetHex) {
 		t.Error("expected valid hex")
 	}
-	if isValidHex("not-hex") {
+	if thread.IsValidDatasetHex("not-hex") {
 		t.Error("expected invalid hex")
 	}
-	if isValidHex("") {
+	if thread.IsValidDatasetHex("") {
 		t.Error("expected empty string invalid")
 	}
 }
 
 func TestRunSnapshot(t *testing.T) {
-	snap, err := RunSnapshot(context.Background(), NewThreadService(NewMockOtCtl(), CollectBestEffort))
+	snap, err := RunSnapshot(context.Background(), thread.NewClient(thread.NewMock(), thread.PolicyBestEffort))
 	if err != nil {
 		t.Fatalf("RunSnapshot failed: %v", err)
 	}

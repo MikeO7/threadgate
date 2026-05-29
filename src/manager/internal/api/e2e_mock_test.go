@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
 func TestE2EMockMode(t *testing.T) {
-	mock := NewMockOtCtl()
+	mock := thread.NewMock()
 	server := NewServerWithOtCtl(0, mock, true)
 	ts := httptest.NewServer(server.Handler())
 	t.Cleanup(ts.Close)
@@ -105,7 +106,10 @@ func testActiveDatasetGetDefault(t *testing.T, baseURL string) {
 
 func testActiveDatasetPutAndGet(t *testing.T, baseURL string) {
 	ctx := context.Background()
-	newHex := "0e080000000000018888"
+	newHex, err := thread.BuildOperationalDatasetHex(thread.MockNetworkKeyHex, 0x8888)
+	if err != nil {
+		t.Fatalf("build dataset: %v", err)
+	}
 	reqPut, err := http.NewRequestWithContext(ctx, http.MethodPut, baseURL+"/node/dataset/active", strings.NewReader(newHex))
 	if err != nil {
 		t.Fatalf("Failed to create PUT request: %v", err)

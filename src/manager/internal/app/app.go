@@ -46,7 +46,7 @@ func (a *App) Run() error {
 	log.Println("      ThreadGate Standalone OTBR Orchestrator       ")
 	log.Println("====================================================")
 
-	hostAudit := hardware.AuditHost()
+	hostAudit := hardware.AuditHost(a.cfg.Runtime.IsMock())
 	log.Printf("[App] Host Audit completed. %d warnings found.\n", len(hostAudit.Warnings))
 	for _, w := range hostAudit.Warnings {
 		log.Printf("[App] Warning: %s\n", w)

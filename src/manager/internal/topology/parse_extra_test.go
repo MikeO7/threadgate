@@ -92,35 +92,48 @@ Done`
 		t.Fatalf("expected 2 prefixes, got %d", len(prefixes))
 	}
 
-	p1 := prefixes[0]
-	if p1.Prefix != "fd00:db8::/64" {
-		t.Fatalf("unexpected prefix 1: %s", p1.Prefix)
+	assertPrefixEntry(t, prefixes[0], prefixExpectation{
+		prefix:     "fd00:db8::/64",
+		preference: prefixPrefMedium,
+		stable:     true,
+		flag:       "slaac",
+	})
+
+	assertPrefixEntry(t, prefixes[1], prefixExpectation{
+		prefix:     "fd11:2233:4455:1::/64",
+		preference: prefixPrefHigh,
+		stable:     true,
+	})
+}
+
+type prefixExpectation struct {
+	prefix     string
+	preference string
+	stable     bool
+	flag       string
+}
+
+func assertPrefixEntry(t *testing.T, entry PrefixEntry, want prefixExpectation) {
+	t.Helper()
+	if entry.Prefix != want.prefix {
+		t.Fatalf("unexpected prefix: %s", entry.Prefix)
 	}
-	if p1.Preference != "medium" {
-		t.Fatalf("unexpected preference 1: %s", p1.Preference)
+	if entry.Preference != want.preference {
+		t.Fatalf("unexpected preference: %s", entry.Preference)
 	}
-	if !p1.Stable {
-		t.Fatal("expected prefix 1 to be stable")
+	if entry.Stable != want.stable {
+		t.Fatalf("expected stable=%v", want.stable)
 	}
-	// Check flags
-	hasSlaac := false
-	for _, f := range p1.Flags {
-		if f == "slaac" {
-			hasSlaac = true
+	if want.flag != "" && !containsString(entry.Flags, want.flag) {
+		t.Fatalf("expected flags %v to contain %q", entry.Flags, want.flag)
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
 		}
 	}
-	if !hasSlaac {
-		t.Fatalf("expected prefix 1 flags %v to contain 'slaac'", p1.Flags)
-	}
-
-	p2 := prefixes[1]
-	if p2.Prefix != "fd11:2233:4455:1::/64" {
-		t.Fatalf("unexpected prefix 2: %s", p2.Prefix)
-	}
-	if p2.Preference != "high" {
-		t.Fatalf("unexpected preference 2: %s", p2.Preference)
-	}
-	if !p2.Stable {
-		t.Fatal("expected prefix 2 to be stable")
-	}
+	return false
 }

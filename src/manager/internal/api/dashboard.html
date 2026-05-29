@@ -25,6 +25,24 @@
 <body>
     <div id="tooltip"></div>
     <div id="dom-tooltip" class="help-tooltip-popup"></div>
+
+    <!-- HASS pairing banner (outside .app-shell so position:fixed stays on viewport) -->
+    <div id="hass-pairing-toast" class="pairing-toast-hidden" role="alertdialog" aria-labelledby="pairing-toast-title">
+        <div class="pairing-toast-content">
+            <div class="pairing-toast-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="pairing-toast-text">
+                <h4 class="pairing-toast-title" id="pairing-toast-title">Secure Connection Request</h4>
+                <p class="pairing-toast-sub"><strong><span id="pairing-app-name">Home Assistant</span></strong> (<span id="pairing-app-url"></span>) wants to link with ThreadGate.</p>
+            </div>
+            <div class="pairing-toast-actions">
+                <button type="button" id="btn-pairing-approve" class="pairing-action-btn approve">Approve Connection</button>
+                <button type="button" id="btn-pairing-deny" class="pairing-action-btn deny">Decline</button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-shell">
     <header>
         <div class="logo-group">
@@ -33,9 +51,17 @@
         </div>
 
         <div class="header-actions">
-            <div class="status-badge">
-                <span class="pulse"></span>
-                Operational
+            <div class="status-badge status-badge--{{.RadioBadge.Variant}}" data-tooltip="{{.RadioBadge.Tooltip}}">
+                <span class="pulse pulse--{{.RadioBadge.Variant}}"></span>
+                {{.RadioBadge.Label}}
+            </div>
+            <div class="status-badge status-badge--{{.ThreadBadge.Variant}}" data-tooltip="{{.ThreadBadge.Tooltip}}">
+                <span class="pulse pulse--{{.ThreadBadge.Variant}}"></span>
+                {{.ThreadBadge.Label}}
+            </div>
+            <div class="status-badge status-badge--{{.HassBadge.Variant}}{{if and (ne .HassStatus "Connected") (ne .HassStatus "Pending")}} status-badge--action{{end}}" data-tooltip="{{.HassBadge.Tooltip}}"{{if and (ne .HassStatus "Connected") (ne .HassStatus "Pending")}} onclick="openHassGuideModal()"{{end}}>
+                <span class="pulse pulse--{{.HassBadge.Variant}}"></span>
+                {{.HassBadge.Label}}
             </div>
             <button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle color theme" title="Toggle light / dark">
                 <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -120,8 +146,8 @@
                 <h2>Thread Mesh Map <span class="tab-subtitle">{{len .Neighbors}} nodes · {{len .MeshLinks}} relationships</span></h2>
                 <div class="map-toolbar">
                     <div class="map-view-toggle">
-                        <button id="btn-view-star" class="view-btn" type="button">Star View</button>
                         <button id="btn-view-route" class="view-btn active" type="button">Route View</button>
+                        <button id="btn-view-star" class="view-btn" type="button">Star View</button>
                     </div>
                     <div class="map-view-toggle">
                         <button id="btn-traffic" class="view-btn active" type="button">Traffic On</button>
@@ -192,12 +218,16 @@
                     <span class="metric-label">Operational Mode<span class="info-icon" data-tooltip="Shows whether the app is using simulated virtual devices or communicating with real physical USB hardware."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
                     <span class="metric-value">{{if .MockMode}}<span style="color: var(--warning)">Simulated (Mock)</span>{{else}}<span style="color: var(--success)">Hardware (Real)</span>{{end}}</span>
                 </div>
-                {{if .HassEnabled}}
                 <div class="metric-row">
                     <span class="metric-label">Home Assistant<span class="info-icon" data-tooltip="Synchronizes friendly smart home names (like 'Living Room Switch') directly with Home Assistant."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
+                    {{if eq .HassStatus "Connected"}}
                     <span class="metric-value" style="color: var(--cyan)">Name Sync Active</span>
+                    {{else if eq .HassStatus "Failed"}}
+                    <span class="metric-value" style="color: var(--danger); cursor: pointer;" onclick="openHassGuideModal()" title="Connection failed: {{.HassError}} (Click to troubleshoot)">Connection Failed ⚠</span>
+                    {{else}}
+                    <span class="metric-value" style="color: var(--text-muted); cursor: pointer; text-decoration: underline;" onclick="openHassGuideModal()">Not Configured (Setup ↗)</span>
+                    {{end}}
                 </div>
-                {{end}}
             </div>
 
             <!-- Card 3: Performance Audit Counters -->
@@ -311,12 +341,42 @@
                             {{range .Neighbors}}
                             <tr>
                                 <td>
-                                    {{if .FriendlyName}}
-                                        <div style="font-weight: 600; color: var(--text);">{{.FriendlyName}}</div>
-                                        <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">{{.ExtAddr}}</div>
-                                    {{else}}
-                                        {{.ExtAddr}}
-                                    {{end}}
+                                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                                        {{if eq .Availability "unavailable" "unknown"}}
+                                            <span style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; flex-shrink: 0;" title="Offline (Home Assistant)"></span>
+                                        {{else if eq .Availability "on"}}
+                                            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; flex-shrink: 0;" title="Online (Home Assistant)"></span>
+                                        {{else if eq .Availability "off"}}
+                                            <span style="width: 8px; height: 8px; background: var(--text-subtle); border-radius: 50%; flex-shrink: 0;" title="Off (Home Assistant)"></span>
+                                        {{else if .Availability}}
+                                            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; flex-shrink: 0;" title="Connected (Home Assistant)"></span>
+                                        {{end}}
+
+                                        <div>
+                                            {{if .FriendlyName}}
+                                                <div style="font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                                                    {{.FriendlyName}}
+                                                    {{if .Battery}}
+                                                        <span style="font-size: 0.75rem; font-weight: 500; color: {{if isLowBattery .Battery}}var(--danger){{else}}var(--text-muted){{end}};" title="Battery Level">
+                                                            {{.Battery}}% {{if isLowBattery .Battery}}🪫{{else}}🔋{{end}}
+                                                        </span>
+                                                    {{end}}
+                                                </div>
+                                                {{if or .Manufacturer .Model}}
+                                                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{if .Manufacturer}}{{.Manufacturer}} {{end}}{{if .Model}}{{.Model}}{{end}}</div>
+                                                {{end}}
+                                                <div style="font-size: 0.72rem; color: var(--text-subtle); font-family: var(--font-mono);">
+                                                    {{.ExtAddr}}
+                                                    {{if .SwVersion}} &middot; Firmware {{.SwVersion}}{{end}}
+                                                    {{if and .HassDeviceID $.HassEnabled}}
+                                                        &middot; <a href="{{$.HassURL}}/config/devices/device/{{.HassDeviceID}}" target="_blank" rel="noopener" style="color: var(--cyan); text-decoration: none;">Control in HASS ↗</a>
+                                                    {{end}}
+                                                </div>
+                                            {{else}}
+                                                <span style="font-family: var(--font-mono);">{{.ExtAddr}}</span>
+                                            {{end}}
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>{{.Rloc16}}</td>
                                 <td>
@@ -393,140 +453,103 @@
 
     <!-- Tab 3: Spectrum & Co-existence Analyzer -->
     <div id="spectrum-tab" class="tab-content">
-        <div class="spectrum-panel" style="width: 100%;">
-            <div class="card col-12 spectrum-card">
-                <div class="spectrum-tab-header">
-                    <div>
-                        <h2 class="spectrum-tab-title">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5v14M22 8v8M7 8v8M2 10v4"/></svg>
-                            Spectrum &amp; Co-existence Analyzer<span class="info-icon" data-tooltip="Thread operates on the 2.4GHz radio band, sharing space with Wi-Fi. This scanner helps identify channels that avoid Wi-Fi overlap to minimize interference."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
-                        </h2>
-                        <p class="spectrum-tab-sub">Real-time 2.4GHz spectrum energy scan and Wi-Fi co-existence map.</p>
-                    </div>
-                    <button id="btn-refresh-scan" onclick="performSpectrumScan()" class="action-btn spectrum-refresh-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                        Refresh Energy Scan
-                    </button>
-                </div>
-
-                <!-- ============ RECOMMENDED CHANNEL HERO ============ -->
-                <div id="spectrum-rec-hero" class="rec-hero is-loading">
-                    <div class="rec-hero-aura"></div>
-                    <div class="rec-hero-main">
-                        <span class="rec-hero-eyebrow">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.6 6.6L12 16.9 6.2 20.3l1.6-6.6L2.6 8.8l6.8-.5z"/></svg>
-                            Recommended Channel
-                        </span>
-                        <div class="rec-hero-headline">
-                            <span class="rec-hero-channel">Ch&nbsp;<span id="rec-hero-num">—</span></span>
-                            <span id="rec-hero-rating" class="rec-hero-rating-badge">Scanning…</span>
+        <main>
+            <!-- Card 1: Recommended Channel -->
+            <div class="card col-12 rec-card is-loading" id="spectrum-rec-hero">
+                <h2>Recommended Channel<span class="info-icon" data-tooltip="Thread shares the 2.4GHz band with Wi-Fi. We recommend the quietest channel that avoids common Wi-Fi overlap to minimize interference."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></h2>
+                <div class="rec-card-body">
+                    <div class="rec-card-lead">
+                        <div class="rec-card-channel">
+                            <span class="rec-card-ch-label">Channel</span>
+                            <span class="rec-card-ch-num" id="rec-hero-num">—</span>
+                            <span class="lqi-badge" id="rec-hero-rating">Scanning</span>
                         </div>
-                        <p id="rec-hero-reason" class="rec-hero-reason">Running an energy scan to find the clearest, least-congested frequency for your mesh…</p>
+                        <p class="rec-card-reason" id="rec-hero-reason">Running an energy scan to find the quietest frequency for your mesh…</p>
                     </div>
-                    <div class="rec-hero-action">
-                        <div class="rec-hero-current">
-                            <span class="rec-hero-current-label">Currently active</span>
-                            <span class="rec-hero-current-val">Ch <span id="rec-hero-current-num">{{.Channel}}</span></span>
+                    <div class="rec-card-action">
+                        <div class="metric-row rec-active-row">
+                            <span class="metric-label">Currently active</span>
+                            <span class="metric-value">Ch <span id="rec-hero-current-num">{{.Channel}}</span></span>
                         </div>
-                        <button id="rec-hero-apply" onclick="applyRecommendedChannel()" class="rec-hero-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                            Switch to Channel <span id="rec-hero-apply-num">—</span>
+                        <button id="rec-hero-apply" onclick="applyRecommendedChannel()" class="action-btn auto-tune-btn" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            Auto-Optimize to Channel <span id="rec-hero-apply-num">—</span>
                         </button>
-                        <span id="rec-hero-status" class="rec-hero-status" style="display:none;"></span>
-                    </div>
-                </div>
-
-                <div class="spectrum-grid-layout">
-                    <!-- Left: Large Spectrum Chart -->
-                    <div class="spectrum-visualizer-section">
-                        <div class="spectrum-header">
-                            <div>
-                                <span class="spectrum-title">2.4GHz RF Energy Spectrum</span>
-                                <span class="spectrum-subtitle">Lower bars are quieter. Click any channel to inspect it.</span>
-                            </div>
-                            <div class="spectrum-legend">
-                                <span class="spectrum-legend-item"><span class="dot dot-best"></span>Recommended</span>
-                                <span class="spectrum-legend-item"><span class="dot dot-current"></span>Active</span>
-                            </div>
-                        </div>
-
-                        <div class="spectrum-analyzer-container">
-                            <!-- Background grid lines for RSSI -->
-                            <div class="chart-y-axis">
-                                <span class="y-label">-40 dBm</span>
-                                <span class="y-label">-60 dBm</span>
-                                <span class="y-label">-80 dBm</span>
-                                <span class="y-label">-100 dBm</span>
-                            </div>
-
-                            <div id="tab-spectrum-chart-bars" class="spectrum-chart">
-                                <!-- Bars will be dynamically generated here -->
-                            </div>
-                        </div>
-
-                        <!-- Wi-Fi Overlap Lane -->
-                        <div class="wifi-overlap-section">
-                            <span class="spectrum-title wifi-overlap-title">Wi-Fi Spectrum Overlap</span>
-                            <div class="wifi-overlap-bands">
-                                <div class="wifi-band overlap-ch1" style="flex: 4;" title="Wi-Fi Channel 1 (Thread Channels 11-14)">Wi-Fi Ch 1</div>
-                                <div class="wifi-band gap" style="flex: 1;" title="Co-existence Gap (Thread Channel 15)">Gap 15</div>
-                                <div class="wifi-band overlap-ch6" style="flex: 4;" title="Wi-Fi Channel 6 (Thread Channels 16-19)">Wi-Fi Ch 6</div>
-                                <div class="wifi-band gap" style="flex: 1;" title="Co-existence Gap (Thread Channel 20)">Gap 20</div>
-                                <div class="wifi-band overlap-ch11" style="flex: 4;" title="Wi-Fi Channel 11 (Thread Channels 21-24)">Wi-Fi Ch 11</div>
-                                <div class="wifi-band shielded" style="flex: 2;" title="Shielded / Low Power Zone (Thread Channels 25-26)">Shielded</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Inspector/Detail Panel -->
-                    <div class="spectrum-details-panel">
-                        <div class="rec-section-header">Channel Inspector</div>
-
-                        <div id="tab-selected-channel-card" class="selected-channel-card">
-                            <div class="channel-main-header">
-                                <div class="channel-number-large">Ch <span id="tab-selected-channel-num">-</span></div>
-                                <div class="channel-badge-stack">
-                                    <span id="tab-selected-channel-best-tag" class="best-inline-tag" style="display:none;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.6 6.6L12 16.9 6.2 20.3l1.6-6.6L2.6 8.8l6.8-.5z"/></svg>
-                                        Best
-                                    </span>
-                                    <span id="tab-selected-channel-rating" class="rating-badge">Excellent</span>
-                                </div>
-                            </div>
-
-                            <!-- Traffic / Congestion Indicator -->
-                            <div class="congestion-container">
-                                <div class="congestion-label-row">
-                                    <span>RF Traffic Congestion<span class="info-icon" data-tooltip="The level of background wireless activity on this channel. Lower RSSI (e.g. -95 dBm) is quieter and better; higher is noisier."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
-                                    <span id="tab-selected-channel-rssi" class="rssi-val">- dBm</span>
-                                </div>
-                                <div class="congestion-bar-bg">
-                                    <div id="tab-selected-channel-congestion-bar" class="congestion-bar-fill" style="width: 0%;"></div>
-                                </div>
-                                <span id="tab-selected-channel-congestion-text" class="congestion-subtext">Very Low (Quiet Frequency)</span>
-                            </div>
-
-                            <!-- Overlap / Co-existence Profile -->
-                            <div class="profile-row">
-                                <span class="profile-label">Co-existence Status<span class="info-icon" data-tooltip="Checks if this channel overlaps with strong standard 2.4GHz Wi-Fi channels (1, 6, 11). 'Safe Gaps' or 'Shielded' zones are safest."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
-                                <span id="tab-selected-channel-profile-status" class="profile-value">-</span>
-                            </div>
-
-                            <div class="recommendation-text-box">
-                                <p id="tab-selected-channel-advice" style="margin: 0;"></p>
-                            </div>
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="modal-action-row">
-                            <button id="tab-btn-apply-channel" onclick="applyChannelFromTab()" class="cyber-button success-btn spectrum-deploy-btn">
-                                Deploy Channel <span id="tab-btn-apply-channel-num">-</span> to Thread Mesh
-                            </button>
+                        <div id="rec-hero-status" class="rec-optimal-note" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            Already on the best channel
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Card 2: Energy Spectrum chart -->
+            <div class="card col-8">
+                <h2>
+                    <span class="h2-title-group">2.4&nbsp;GHz Energy Spectrum<span class="tab-subtitle" id="spectrum-count"></span><span class="info-icon" data-tooltip="A live energy scan of all 16 Thread channels. Shorter bars mean a quieter, less congested frequency."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
+                    <button id="btn-refresh-scan" onclick="performSpectrumScan()" class="h2-action-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Rescan
+                    </button>
+                </h2>
+
+                <div class="map-legend spectrum-legend">
+                    <span class="legend-item"><span class="legend-dot best"></span>Recommended</span>
+                    <span class="legend-item"><span class="legend-dot active"></span>Active channel</span>
+                    <span class="legend-item">Shorter bar = quieter</span>
+                </div>
+
+                <div class="spectrum-chart-frame">
+                    <div class="chart-y-axis">
+                        <span class="y-label">-40</span>
+                        <span class="y-label">-60</span>
+                        <span class="y-label">-80</span>
+                        <span class="y-label">-100 dBm</span>
+                    </div>
+                    <div id="tab-spectrum-chart-bars" class="spectrum-chart"></div>
+                </div>
+
+                <p class="section-label section-divider">Wi-Fi Co-existence Map<span class="info-icon" data-tooltip="Standard 2.4GHz Wi-Fi occupies channels 1, 6 and 11. The gaps between them and the shielded upper channels are the safest places for Thread."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></p>
+                <div class="wifi-overlap-bands">
+                    <div class="wifi-band overlap-ch1" style="flex: 4;" title="Wi-Fi Channel 1 (Thread Channels 11-14)">Wi-Fi Ch 1</div>
+                    <div class="wifi-band gap" style="flex: 1;" title="Co-existence Gap (Thread Channel 15)">Gap 15</div>
+                    <div class="wifi-band overlap-ch6" style="flex: 4;" title="Wi-Fi Channel 6 (Thread Channels 16-19)">Wi-Fi Ch 6</div>
+                    <div class="wifi-band gap" style="flex: 1;" title="Co-existence Gap (Thread Channel 20)">Gap 20</div>
+                    <div class="wifi-band overlap-ch11" style="flex: 4;" title="Wi-Fi Channel 11 (Thread Channels 21-24)">Wi-Fi Ch 11</div>
+                    <div class="wifi-band shielded" style="flex: 2;" title="Shielded / Low Power Zone (Thread Channels 25-26)">Shielded</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Channel Inspector -->
+            <div class="card col-4">
+                <h2>Channel Inspector<span class="tab-subtitle">click a bar</span></h2>
+                <div id="tab-selected-channel-card">
+                    <div class="metric-row">
+                        <span class="metric-label">Channel</span>
+                        <span class="metric-value">Ch <span id="tab-selected-channel-num">—</span></span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Signal Rating<span class="info-icon" data-tooltip="Overall channel quality based on background noise. Excellent/Good channels are quiet; Poor channels are congested."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
+                        <span class="lqi-badge" id="tab-selected-channel-rating">—</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Noise Floor<span class="info-icon" data-tooltip="Background RF energy on this channel. Lower (more negative, e.g. -95 dBm) is quieter and better."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
+                        <span class="metric-value" id="tab-selected-channel-rssi">— dBm</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Wi-Fi Co-existence<span class="info-icon" data-tooltip="Whether this channel overlaps strong 2.4GHz Wi-Fi (channels 1, 6, 11). Safe gaps and shielded channels avoid that interference."><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></span>
+                        <span class="lqi-badge" id="tab-selected-channel-profile-status">—</span>
+                    </div>
+                </div>
+
+                <p class="section-label section-divider">Analysis</p>
+                <p class="section-note" id="tab-selected-channel-advice">Select a channel from the spectrum chart to inspect it.</p>
+
+                <button id="tab-btn-apply-channel" onclick="applyChannelFromTab()" class="cyber-button" style="width: 100%;" disabled>
+                    Manual Deploy: Channel <span id="tab-btn-apply-channel-num">—</span>
+                </button>
+            </div>
+        </main>
     </div>
 
     <!-- Tab 4: System event log stream -->
@@ -720,123 +743,56 @@
         window.__recommendedChannel = null;
         window.__inspectedChannel = null;
 
+        function ratingClass(rating) {
+            return "rating-" + String(rating || "").toLowerCase();
+        }
+
+        function coexInfo(channel) {
+            if ([11, 12, 13, 14].indexOf(channel) > -1) return { label: "Wi-Fi Ch 1 overlap", cls: "coex-overlap" };
+            if (channel === 15) return { label: "Safe gap", cls: "coex-safe" };
+            if ([16, 17, 18, 19].indexOf(channel) > -1) return { label: "Wi-Fi Ch 6 overlap", cls: "coex-overlap" };
+            if (channel === 20) return { label: "Safe gap", cls: "coex-safe" };
+            if ([21, 22, 23, 24].indexOf(channel) > -1) return { label: "Wi-Fi Ch 11 overlap", cls: "coex-overlap" };
+            if (channel === 25) return { label: "Shielded", cls: "coex-shielded" };
+            if (channel === 26) return { label: "Clear", cls: "coex-safe" };
+            return { label: "Standard", cls: "coex-neutral" };
+        }
+
         function selectChannel(channelNum) {
             if (!window.__scanResults) return;
             var channelData = window.__scanResults.find(function(r) { return r.channel === channelNum; });
             if (!channelData) return;
 
-            // Highlight active bar
-            var wrappers = document.querySelectorAll(".spectrum-bar-wrapper");
-            wrappers.forEach(function(w) {
-                if (parseInt(w.getAttribute("data-channel")) === channelNum) {
-                    w.classList.add("active");
-                } else {
-                    w.classList.remove("active");
-                }
+            document.querySelectorAll(".spectrum-bar-wrapper").forEach(function(w) {
+                w.classList.toggle("selected", parseInt(w.getAttribute("data-channel"), 10) === channelNum);
             });
 
-            // Update Right Side Panel (Spectrum Tab)
-            var tabNumEl = document.getElementById("tab-selected-channel-num");
+            var numEl = document.getElementById("tab-selected-channel-num");
             var ratingBadge = document.getElementById("tab-selected-channel-rating");
             var rssiEl = document.getElementById("tab-selected-channel-rssi");
-            var barFill = document.getElementById("tab-selected-channel-congestion-bar");
-            var congText = document.getElementById("tab-selected-channel-congestion-text");
-            var statusText = document.getElementById("tab-selected-channel-profile-status");
+            var statusBadge = document.getElementById("tab-selected-channel-profile-status");
             var adviceText = document.getElementById("tab-selected-channel-advice");
+            var applyBtn = document.getElementById("tab-btn-apply-channel");
             var applyBtnNum = document.getElementById("tab-btn-apply-channel-num");
 
-            if (tabNumEl) tabNumEl.innerText = channelData.channel;
+            if (numEl) numEl.innerText = channelData.channel;
             if (ratingBadge) {
                 ratingBadge.innerText = channelData.rating;
-                // Set rating badge colors
-                if (channelData.rating === "Excellent") {
-                    ratingBadge.style.background = "var(--success-soft)";
-                    ratingBadge.style.color = "var(--success)";
-                } else if (channelData.rating === "Good") {
-                    ratingBadge.style.background = "var(--accent-soft)";
-                    ratingBadge.style.color = "var(--accent)";
-                } else if (channelData.rating === "Fair") {
-                    ratingBadge.style.background = "var(--warning-soft)";
-                    ratingBadge.style.color = "var(--warning)";
-                } else {
-                    ratingBadge.style.background = "var(--danger-soft)";
-                    ratingBadge.style.color = "var(--danger)";
-                }
+                ratingBadge.className = "lqi-badge " + ratingClass(channelData.rating);
             }
-
-            // Update RSSI and Congestion
             if (rssiEl) rssiEl.innerText = channelData.rssi + " dBm";
-            
-            // Map RSSI to traffic congestion percentage (-100 to -40 range)
-            var rssiVal = channelData.rssi;
-            var trafficPct = Math.max(5, Math.min(100, ((rssiVal - (-100)) / (-40 - (-100))) * 100));
-            if (barFill) {
-                barFill.style.width = trafficPct + "%";
-                // Congestion text and bar color
-                if (rssiVal <= -85) {
-                    if (congText) congText.innerText = "Very Low";
-                    barFill.style.backgroundColor = "var(--success)";
-                } else if (rssiVal <= -75) {
-                    if (congText) congText.innerText = "Low";
-                    barFill.style.backgroundColor = "var(--accent)";
-                } else if (rssiVal <= -65) {
-                    if (congText) congText.innerText = "Moderate";
-                    barFill.style.backgroundColor = "var(--warning)";
-                } else {
-                    if (congText) congText.innerText = "High";
-                    barFill.style.backgroundColor = "var(--danger)";
-                }
+
+            if (statusBadge) {
+                var coex = coexInfo(channelData.channel);
+                statusBadge.innerText = coex.label;
+                statusBadge.className = "lqi-badge " + coex.cls;
             }
 
-            // Co-existence Status Text
-            if (statusText) {
-                // Determine co-existence category based on channel number
-                var statusDesc = "Standard";
-                if ([11, 12, 13, 14].includes(channelData.channel)) {
-                    statusDesc = "Ch 1 Overlap";
-                    statusText.style.color = "var(--danger)";
-                } else if (channelData.channel === 15) {
-                    statusDesc = "Safe Gap";
-                    statusText.style.color = "var(--success)";
-                } else if ([16, 17, 18, 19].includes(channelData.channel)) {
-                    statusDesc = "Ch 6 Overlap";
-                    statusText.style.color = "var(--danger)";
-                } else if (channelData.channel === 20) {
-                    statusDesc = "Safe Gap";
-                    statusText.style.color = "var(--success)";
-                } else if ([21, 22, 23, 24].includes(channelData.channel)) {
-                    statusDesc = "Ch 11 Overlap";
-                    statusText.style.color = "var(--danger)";
-                } else if (channelData.channel === 25) {
-                    statusDesc = "Shielded";
-                    statusText.style.color = "var(--cyan)";
-                } else if (channelData.channel === 26) {
-                    statusDesc = "Clear";
-                    statusText.style.color = "var(--success)";
-                }
-                statusText.innerText = statusDesc;
-            }
-            
-            // Highlight recommendation with styled prefix if it's the recommended one
-            if (adviceText) {
-                var isRec = (channelNum === window.__recommendedChannel);
-                var adviceContent = channelData.recommendation;
-                if (isRec) {
-                    adviceContent = '<strong style="color: var(--warning);">RECOMMENDED CHANNEL:</strong> ' + adviceContent;
-                }
-                adviceText.innerHTML = adviceContent;
-            }
+            if (adviceText) adviceText.innerText = channelData.recommendation || "";
 
-            // Set Apply Button
             if (applyBtnNum) applyBtnNum.innerText = channelData.channel;
+            if (applyBtn) applyBtn.disabled = false;
 
-            // Show "Best" inline tag when inspecting the recommended channel
-            var bestTag = document.getElementById("tab-selected-channel-best-tag");
-            if (bestTag) {
-                bestTag.style.display = (channelNum === window.__recommendedChannel) ? "inline-flex" : "none";
-            }
-
-            // Save currently inspected channel
             window.__inspectedChannel = channelData.channel;
         }
 
@@ -860,30 +816,20 @@
 
             if (ratingEl) {
                 ratingEl.innerText = best.rating;
-                ratingEl.className = "rec-hero-rating-badge rating-" + String(best.rating).toLowerCase();
+                ratingEl.className = "lqi-badge " + ratingClass(best.rating);
             }
 
-            // Strip the leading "Rating (noise: X dBm)." prefix for a cleaner hero sentence.
+            // Strip the leading "Rating (noise: X dBm)." prefix for a cleaner sentence.
             if (reasonEl) {
                 var reason = best.recommendation || "";
                 var sepIdx = reason.indexOf(". ");
                 var trimmed = (sepIdx > -1 && sepIdx < 40) ? reason.slice(sepIdx + 2) : reason;
-                reasonEl.innerText = "Channel " + best.channel + " is the clearest frequency we found (" + best.rssi + " dBm). " + trimmed;
+                reasonEl.innerText = "Channel " + best.channel + " is the quietest frequency we found (" + best.rssi + " dBm). " + trimmed;
             }
 
-            // If already on the recommended channel, swap the CTA for a confirmation state.
             var alreadyBest = (String(best.channel) === String(previousChannelValue));
-            hero.classList.toggle("is-optimal", alreadyBest);
-            if (applyBtn && statusEl) {
-                if (alreadyBest) {
-                    applyBtn.style.display = "none";
-                    statusEl.style.display = "inline-flex";
-                    statusEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Already on the best channel';
-                } else {
-                    applyBtn.style.display = "inline-flex";
-                    statusEl.style.display = "none";
-                }
-            }
+            if (applyBtn) applyBtn.style.display = alreadyBest ? "none" : "";
+            if (statusEl) statusEl.style.display = alreadyBest ? "inline-flex" : "none";
         }
 
         function applyRecommendedChannel() {
@@ -897,7 +843,7 @@
         function applyChannelFromTab() {
             var chan = window.__inspectedChannel;
             if (!chan) return;
-            
+
             pendingChannelValue = String(chan);
             document.getElementById("safetyModalChannel").innerText = "Channel " + chan;
             document.getElementById("safetyModal").style.display = "flex";
@@ -914,10 +860,10 @@
             var chartContainer = document.getElementById("tab-spectrum-chart-bars");
 
             addLog("SCAN", "Initiating IEEE 802.15.4 Channel Energy Scan...", "var(--violet)");
-            
+
             if (tabBtn) {
                 tabBtn.disabled = true;
-                tabBtn.innerHTML = '<svg class="spinner" width="14" height="14" viewBox="0 0 50 50" style="animation: rotate 1s linear infinite; margin-right: 0.35rem;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="50 150" stroke-linecap="round"></circle></svg>Scanning Frequencies...';
+                tabBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 50 50" style="animation: rotate 1s linear infinite; margin-right: 0.35rem;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="50 150" stroke-linecap="round"></circle></svg>Scanning…';
             }
             if (mainBtn) {
                 mainBtn.disabled = true;
@@ -948,16 +894,16 @@
                     var skeletonWrapper = document.createElement("div");
                     skeletonWrapper.className = "spectrum-bar-wrapper";
                     skeletonWrapper.style.opacity = "0.5";
-                    
+
                     var bar = document.createElement("div");
                     bar.className = "spectrum-bar";
                     bar.style.height = "10%";
                     bar.style.backgroundColor = "var(--surface-3)";
-                    
+
                     var label = document.createElement("div");
                     label.className = "spectrum-bar-label";
                     label.innerText = i;
-                    
+
                     skeletonWrapper.appendChild(bar);
                     skeletonWrapper.appendChild(label);
                     chartContainer.appendChild(skeletonWrapper);
@@ -974,7 +920,7 @@
                 .then(function(results) {
                     if (tabBtn) {
                         tabBtn.disabled = false;
-                        tabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Refresh Energy Scan';
+                        tabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Rescan';
                     }
                     if (mainBtn) {
                         mainBtn.disabled = false;
@@ -992,15 +938,15 @@
                     var fallbackArea = document.getElementById("scan-recommendation-area");
                     if (fallbackArea) {
                         fallbackArea.style.display = "block";
-                        
+
                         var sorted = [...results].sort(function(a, b) { return a.rssi - b.rssi; });
                         var best = sorted[0];
-                        
+
                         var bestNum = document.getElementById("recommended-channel-num");
                         var bestRating = document.getElementById("recommended-channel-rating");
                         var bestText = document.getElementById("recommended-channel-text");
                         var details = document.getElementById("scanned-channels-details");
-                        
+
                         if (bestNum) bestNum.innerText = best.channel;
                         if (bestRating) {
                             bestRating.innerText = best.rating;
@@ -1019,7 +965,7 @@
                             }
                         }
                         if (bestText) bestText.innerText = best.recommendation;
-                        
+
                         if (details) {
                             details.replaceChildren();
                             results.forEach(function(r) {
@@ -1076,6 +1022,9 @@
                     // Update the prominent recommendation hero banner
                     updateRecommendationHero(tabBest);
 
+                    var countEl = document.getElementById("spectrum-count");
+                    if (countEl) countEl.innerText = results.length + " channels scanned";
+
                     if (chartContainer) {
                         chartContainer.replaceChildren();
 
@@ -1087,24 +1036,18 @@
                         var activeChannel = parseInt(previousChannelValue, 10);
 
                         sortedByChannel.forEach(function(r) {
+                            var isBest = (r.channel === tabBest.channel);
+                            var isActive = (r.channel === activeChannel);
+
                             var wrapper = document.createElement("div");
                             wrapper.className = "spectrum-bar-wrapper";
                             wrapper.setAttribute("data-channel", r.channel);
                             wrapper.setAttribute("title", "Channel " + r.channel + " · " + r.rssi + " dBm · " + r.rating);
+                            if (isBest) wrapper.classList.add("is-best");
+                            if (isActive) wrapper.classList.add("is-current");
                             wrapper.onclick = function() {
                                 selectChannel(r.channel);
                             };
-
-                            var isBest = (r.channel === tabBest.channel);
-                            var isActive = (r.channel === activeChannel);
-
-                            // Floating "BEST" tag above the recommended bar
-                            if (isBest) {
-                                var bestTag = document.createElement("div");
-                                bestTag.className = "spectrum-best-tag";
-                                bestTag.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.6 6.6L12 16.9 6.2 20.3l1.6-6.6L2.6 8.8l6.8-.5z"/></svg>BEST';
-                                wrapper.appendChild(bestTag);
-                            }
 
                             // Height mapping from RSSI (-100 to -40)
                             var heightPct = Math.max(8, Math.min(100, ((r.rssi - (-100)) / (-40 - (-100))) * 100));
@@ -1112,38 +1055,25 @@
                             var bar = document.createElement("div");
                             bar.className = "spectrum-bar";
                             bar.style.height = heightPct + "%";
-
-                            // Set color of the bar
-                            var barColor = "var(--text-subtle)";
-                            if (r.rating === "Excellent") barColor = "var(--success)";
-                            else if (r.rating === "Good") barColor = "var(--accent)";
-                            else if (r.rating === "Fair") barColor = "var(--warning)";
-                            else if (r.rating === "Poor") barColor = "var(--danger)";
-
-                            // Highlight recommended bar with distinct gold-green gradient and glow
-                            if (isBest) {
-                                bar.classList.add("recommended-bar");
-                            } else {
-                                bar.style.backgroundColor = barColor;
-                                bar.style.color = barColor;
-                            }
-
                             wrapper.appendChild(bar);
 
                             var label = document.createElement("div");
                             label.className = "spectrum-bar-label";
-                            if (isBest) {
-                                label.classList.add("recommended");
-                            }
-                            if (isActive) {
-                                wrapper.classList.add("is-current");
-                                var activeDot = document.createElement("span");
-                                activeDot.className = "spectrum-active-dot";
-                                activeDot.title = "Currently active channel";
-                                label.appendChild(activeDot);
-                            }
                             label.appendChild(document.createTextNode(r.channel));
                             wrapper.appendChild(label);
+
+                            // A single, calm caption marks the recommended / active channels.
+                            if (isBest) {
+                                var bestCap = document.createElement("span");
+                                bestCap.className = "bar-caption best";
+                                bestCap.innerText = "Best";
+                                wrapper.appendChild(bestCap);
+                            } else if (isActive) {
+                                var activeCap = document.createElement("span");
+                                activeCap.className = "bar-caption active";
+                                activeCap.innerText = "Active";
+                                wrapper.appendChild(activeCap);
+                            }
 
                             chartContainer.appendChild(wrapper);
                         });
@@ -1157,7 +1087,7 @@
                 .catch(function(err) {
                     if (tabBtn) {
                         tabBtn.disabled = false;
-                        tabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Refresh Energy Scan';
+                        tabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Rescan';
                     }
                     if (mainBtn) {
                         mainBtn.disabled = false;
@@ -1281,6 +1211,7 @@
         }
         window.__mockMode = {{.MockMode}};
         window.__hassEnabled = {{.HassEnabled}};
+        window.__hassURL = "{{.HassURL}}";
         window.__topology = {{.TopologyJSON}};
 
         var previousChannelValue = "{{.Channel}}";
@@ -1322,7 +1253,7 @@
 
                 // Position calculation
                 var rect = target.getBoundingClientRect();
-                
+
                 // Temporarily show to get bounding rect for correct height
                 domTooltip.style.display = "block";
                 var tooltipRect = domTooltip.getBoundingClientRect();
@@ -1353,9 +1284,132 @@
                 domTooltip.classList.remove("show");
                 domTooltip.style.display = "none";
             });
+
+            // HASS Handshake Pairing Flow
+            (function() {
+                var toast = document.getElementById("hass-pairing-toast");
+                var appNameSpan = document.getElementById("pairing-app-name");
+                var appUrlSpan = document.getElementById("pairing-app-url");
+                var btnApprove = document.getElementById("btn-pairing-approve");
+                var btnDeny = document.getElementById("btn-pairing-deny");
+
+                var activePairingId = null;
+                var pollInterval = null;
+
+                function checkActivePairing() {
+                    fetch("/api/pair/active")
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) {
+                            if (data && data.length > 0) {
+                                var request = data[0];
+                                activePairingId = request.pairing_id;
+                                appNameSpan.textContent = request.app_name;
+                                appUrlSpan.textContent = request.app_url;
+                                toast.classList.remove("pairing-toast-hidden");
+                                toast.classList.add("pairing-toast-visible");
+                            } else {
+                                toast.classList.remove("pairing-toast-visible");
+                                toast.classList.add("pairing-toast-hidden");
+                                activePairingId = null;
+                            }
+                        })
+                        .catch(function(err) { console.error("HASS check failed:", err); });
+                }
+
+                btnApprove.addEventListener("click", function() {
+                    if (!activePairingId) return;
+                    btnApprove.disabled = true;
+                    fetch("/api/pair/approve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pairing_id: activePairingId })
+                    })
+                    .then(function(res) { return res.json(); })
+                    .then(function() {
+                        toast.classList.remove("pairing-toast-visible");
+                        toast.classList.add("pairing-toast-hidden");
+                        activePairingId = null;
+                        btnApprove.disabled = false;
+                        location.reload();
+                    })
+                    .catch(function(err) {
+                        alert("Failed to approve connection: " + err);
+                        btnApprove.disabled = false;
+                    });
+                });
+
+                btnDeny.addEventListener("click", function() {
+                    if (!activePairingId) return;
+                    btnDeny.disabled = true;
+                    fetch("/api/pair/deny", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pairing_id: activePairingId })
+                    })
+                    .then(function(res) { return res.json(); })
+                    .then(function() {
+                        toast.classList.remove("pairing-toast-visible");
+                        toast.classList.add("pairing-toast-hidden");
+                        activePairingId = null;
+                        btnDeny.disabled = false;
+                    })
+                    .catch(function(err) {
+                        alert("Failed to deny pairing: " + err);
+                        btnDeny.disabled = false;
+                    });
+                });
+
+                // Poll frequently so the approve popup appears soon after HA initiates pairing
+                setInterval(checkActivePairing, 1000);
+                checkActivePairing();
+            })();
+
+            // HASS Guide Modal logic
+            window.openHassGuideModal = function() {
+                var modal = document.getElementById("hassGuideModal");
+                var origin = window.location.origin;
+
+                // Populate dynamic pairing endpoint URL
+                var pairingUrl = document.getElementById("hass-pairing-endpoint-url");
+                if (pairingUrl) {
+                    pairingUrl.textContent = origin + "/api/pair/initiate";
+                }
+
+                // Populate dynamic configuration sensor YAML block
+                var yamlBlock = document.getElementById("hass-yaml-config");
+                if (yamlBlock) {
+                    var yamlText = "# Copy to Home Assistant configuration.yaml\n" +
+                        "sensor:\n" +
+                        "  - platform: rest\n" +
+                        "    name: \"Threadgate Network State\"\n" +
+                        "    resource: \"" + origin + "/api/health\"\n" +
+                        "    value_template: \"" + "{" + "{ value_json.state }" + "}\"\n" +
+                        "    json_attributes:\n" +
+                        "      - channel\n" +
+                        "      - extAddress\n" +
+                        "      - rloc16\n" +
+                        "    scan_interval: 10\n";
+                    yamlBlock.textContent = yamlText;
+                }
+
+                modal.style.display = "flex";
+            };
+
+            window.closeHassGuideModal = function() {
+                document.getElementById("hassGuideModal").style.display = "none";
+            };
+
+            window.copyHassYaml = function() {
+                var yaml = document.getElementById("hass-yaml-config").textContent;
+                navigator.clipboard.writeText(yaml).then(function() {
+                    alert("Home Assistant configuration YAML copied to clipboard!");
+                }).catch(function(err) {
+                    alert("Failed to copy configuration YAML: " + err);
+                });
+            };
         })();
     </script>
-    
+
     <!-- Safety Warning Modal -->
     <div id="safetyModal" class="modal-overlay" style="display: none;">
         <div class="modal-card">
@@ -1373,6 +1427,50 @@
             <div class="modal-footer">
                 <button onclick="closeSafetyModal(false)" class="cyber-button secondary">Cancel</button>
                 <button onclick="closeSafetyModal(true)" class="cyber-button danger-btn">Confirm Channel Change</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Assistant Onboarding Guide Modal -->
+    <div id="hassGuideModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-icon" style="color: var(--cyan); background: rgba(6, 182, 212, 0.1); padding: 0.5rem; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <h3>Home Assistant Integration Guide</h3>
+                <button onclick="closeHassGuideModal()" class="close-modal-btn" style="margin-left: auto; font-size: 1.25rem;">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 0.5rem;">
+                <p>Threadgate is fully compatible with local Home Assistant environments. Integrating it synchronizes friendly smart device names automatically.</p>
+
+                <h4 style="color: var(--text); margin-top: 1.25rem; font-size: 0.88rem; font-weight: 600;">Option A: Zero-Friction Handshake Pairing (Recommended)</h4>
+                <p>Have your custom integration trigger a POST request to this Threadgate instance's pairing API endpoint:</p>
+                <div class="copy-container" style="padding: 0.75rem; margin-bottom: 1rem;">
+                    <div class="dataset-hex" id="hass-pairing-endpoint-url" style="color: var(--cyan); font-weight: 600;">http://&lt;ip&gt;:&lt;port&gt;/api/pair/initiate</div>
+                </div>
+                <p>Once initiated, a pairing prompt will glow right here in the Threadgate Dashboard for one-click approval!</p>
+
+                <h4 style="color: var(--text); margin-top: 1.25rem; font-size: 0.88rem; font-weight: 600;">Option B: Copy-Paste Lovelace Sensors (Direct REST YAML)</h4>
+                <p>Add these highly efficient REST sensors directly to your Home Assistant `configuration.yaml` file to feed Threadgate health, channel, and topology metrics into HASS:</p>
+                <div class="copy-container" style="padding: 0.75rem; background: var(--surface-3);">
+                    <pre class="dataset-hex" id="hass-yaml-config" style="white-space: pre-wrap; font-size: 0.72rem; font-family: var(--font-mono); color: var(--text); line-height: 1.5; padding-right: 3rem;"># Copy to Home Assistant configuration.yaml
+sensor:
+  - platform: rest
+    name: "Threadgate Network State"
+    resource: "http://<ip>:<port>/api/health"
+    value_template: "{{ "{" }}{{ "{" }} value_json.state {{ "}" }}{{ "}" }}"
+    json_attributes:
+      - channel
+      - extAddress
+      - rloc16
+    scan_interval: 10
+</pre>
+                    <button class="copy-btn" onclick="copyHassYaml()" style="top: 0.5rem; right: 0.5rem;">Copy</button>
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top: 1.25rem;">
+                <button onclick="closeHassGuideModal()" class="cyber-button secondary">Done</button>
             </div>
         </div>
     </div>

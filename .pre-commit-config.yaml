@@ -9,3 +9,12 @@ repos:
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: detect-private-key
+
+  # 2. Native Go Formatting
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.12.2
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bash -c 'cd src/manager && golangci-lint run --config ../../.golangci.yml'
+        pass_filenames: false

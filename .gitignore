@@ -10,6 +10,11 @@ coverage.html
 # Local runtime (docker-compose volume mount)
 data/
 
+# Local Home Assistant + ThreadGate integration (make integration)
+/testdata/
+src/manager/testdata/
+src/testdata/
+
 # Environment & secrets
 .env
 .env.*

@@ -48,9 +48,12 @@ func (f *FlightRecorder) Flush(path string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close() //nolint:errcheck
 
 	if _, err := f.fr.WriteTo(file); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
 		return err
 	}
 	log.Printf("[FlightRecorder] Flushed active execution trace to: %s\n", path)

@@ -4,51 +4,10 @@ package topology
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
-	"sync"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 )
-
-type cmdResult struct {
-	label string
-	value string
-	err   error
-}
-
-func runSnapshotCommands(ctx context.Context, runner otctl.Runner) []cmdResult {
-	commands := otctl.SnapshotCommands
-	results := make([]cmdResult, len(commands))
-	var wg sync.WaitGroup
-	wg.Add(len(commands))
-	for i, cmd := range commands {
-		go func(i int, cmd otctl.Command) {
-			defer wg.Done()
-			out, err := runner.Run(ctx, cmd.Args...)
-			results[i] = cmdResult{label: cmd.Label, value: out, err: err}
-		}(i, cmd)
-	}
-	wg.Wait()
-	return results
-}
-
-func collectSnapshotValues(results []cmdResult, mode CollectMode) (map[string]string, []string, error) {
-	var warnings []string
-	values := make(map[string]string, len(results))
-	for _, res := range results {
-		if res.err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: %v", res.label, res.err))
-			if mode == CollectStrict {
-				return nil, warnings, fmt.Errorf("snapshot: %s: %w", res.label, res.err)
-			}
-			continue
-		}
-		values[res.label] = res.value
-	}
-	sort.Strings(warnings)
-	return values, warnings, nil
-}
 
 func normalizeGatewayRloc(rloc string) string {
 	if rloc == "" {
@@ -60,7 +19,8 @@ func normalizeGatewayRloc(rloc string) string {
 	return rloc
 }
 
-func assembleSnapshot(values map[string]string, warnings []string) Snapshot {
+// AssembleSnapshot builds a topology model from collected ot-ctl label values.
+func AssembleSnapshot(values map[string]string, warnings []string) Snapshot {
 	var snap Snapshot
 	snap.State = values[otctl.LabelState]
 	snap.NetworkName = values[otctl.LabelNetworkName]
@@ -95,17 +55,16 @@ func assembleSnapshot(values map[string]string, warnings []string) Snapshot {
 
 // Build collects ot-ctl output and builds the topology snapshot.
 func Build(ctx context.Context, runner otctl.Runner, opts BuildOptions) (Snapshot, error) {
-	results := runSnapshotCommands(ctx, runner)
-	values, warnings, err := collectSnapshotValues(results, opts.Mode)
-	if err != nil {
-		return Snapshot{Warnings: warnings}, err
+	policy := opts.Policy
+	if policy != otctl.PolicyStrict {
+		policy = otctl.PolicyBestEffort
 	}
-
-	snap := assembleSnapshot(values, warnings)
-	if len(warnings) > 0 && opts.Mode == CollectBestEffort {
+	values, warnings, err := otctl.CollectParallel(ctx, runner, otctl.SnapshotCommands, policy)
+	snap := AssembleSnapshot(values, warnings)
+	if len(warnings) > 0 && policy == otctl.PolicyBestEffort && err != nil {
 		return snap, fmt.Errorf("snapshot partial: %s", warnings[0])
 	}
-	return snap, nil
+	return snap, err
 }
 
 // BuildFromTables builds a snapshot from raw ot-ctl table output (for tests).

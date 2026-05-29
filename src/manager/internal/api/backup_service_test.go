@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 )
 
 func TestBackupServiceExportImport(t *testing.T) {
-	threads := NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort)
+	threads := thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort)
 	store := NewBackupStore(threads, "")
 	backup, err := store.Export(context.Background())
 	if err != nil {
@@ -87,7 +89,7 @@ func TestBackupStoreReadFileRejectsPathTraversal(t *testing.T) {
 }
 
 func TestHandleBackupExportMethodNotAllowed(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupExport(rr, req)
@@ -98,7 +100,7 @@ func TestHandleBackupExportMethodNotAllowed(t *testing.T) {
 
 func TestHandleBackupFilesEmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/files", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFiles(rr, req)
@@ -118,7 +120,7 @@ func TestHandleBackupFileRestoreInvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -128,7 +130,7 @@ func TestHandleBackupFileRestoreInvalidJSON(t *testing.T) {
 }
 
 func TestHandleBackupImportFailure(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("ot-ctl down")
 	}), false)
 
@@ -142,7 +144,7 @@ func TestHandleBackupImportFailure(t *testing.T) {
 }
 
 func TestRunMockDatasetCommand(t *testing.T) {
-	otctl := NewMockOtCtl()
+	otctl := thread.NewMock()
 	if _, err := otctl.Run(context.Background(), "dataset", "active", "-x"); err != nil {
 		t.Fatalf("dataset active failed: %v", err)
 	}
@@ -153,9 +155,9 @@ func TestRunMockDatasetCommand(t *testing.T) {
 
 func TestHandleBackupSaveExportError(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithThread(8081, thread.NewClient(thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("export failed")
-	}), CollectBestEffort), false, dir, nil)
+	}), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)
@@ -169,7 +171,7 @@ func TestHandleBackupSaveWriteFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "backups"), []byte("not-a-dir"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	server := NewServerWithThread(8081, NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)

@@ -1,4 +1,7 @@
-.PHONY: all test lint build docker check clean tools fmt vuln actionlint tidy coverage coverage-check precommit fix deadcode
+.PHONY: all test lint build docker check clean tools fmt vuln actionlint tidy coverage coverage-check precommit fix deadcode \
+	help integration integration-up integration-up-auto integration-test integration-down integration-reset \
+	integration-fresh integration-fresh-auto integration-auto integration-logs \
+	hass-dev hass-up hass-test hass-down hass-reset
 
 PRE_COMMIT := $(shell command -v pre-commit 2>/dev/null)
 ifeq ($(PRE_COMMIT),)
@@ -8,7 +11,7 @@ GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null)
 GOVULNCHECK := $(shell command -v govulncheck 2>/dev/null)
 
 ifeq ($(GOLANGCI_LINT),)
-GOLANGCI_LINT := go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 endif
 
 ifeq ($(GOVULNCHECK),)
@@ -82,6 +85,76 @@ build:
 docker-build:
 	@echo "🐳 Building Docker image (local)..."
 	docker compose build
+
+# --- Home Assistant + ThreadGate local integration (docker-compose.integration.yml) ---
+#
+#   make integration             # manual pairing (dashboard approve) + smoke tests
+#   make integration-auto        # auto-approve pairing + smoke tests (CI / other features)
+#   make integration-fresh       # wipe state, manual pairing, tests
+#   make integration-fresh-auto  # wipe state, auto pairing, tests
+#   make integration-down        # stop containers (keep testdata for fast next up)
+
+help:
+	@echo "ThreadGate Make targets"
+	@echo ""
+	@echo "  make integration              Manual pairing (default) + smoke tests"
+	@echo "  make integration-auto         Auto-approve pairing + smoke tests"
+	@echo "  make integration-fresh        Reset testdata, manual pairing, tests"
+	@echo "  make integration-fresh-auto   Reset testdata, auto pairing, tests"
+	@echo "  make integration-up           Start/configure only (manual pairing)"
+	@echo "  make integration-up-auto      Start/configure only (auto pairing)"
+	@echo "  make integration-test         Run smoke tests (stack must already be up)"
+	@echo "  make integration-down    Stop integration containers"
+	@echo "  make integration-reset   Stop and remove local HA/ThreadGate test state"
+	@echo "  make integration-logs    Follow container logs (LOGS=ha|tg|all)"
+	@echo ""
+	@echo "  make all                 Run checks and build binary"
+	@echo "  make test                Run Go unit tests"
+
+integration: integration-up integration-test
+	@echo ""
+	@echo "✅ Home Assistant + ThreadGate integration is ready"
+	@echo "   Home Assistant:  http://127.0.0.1:8123"
+	@echo "   ThreadGate:      http://127.0.0.1:8081"
+	@echo "   Credentials:     testdata/ha-credentials.env"
+
+integration-up:
+	@./scripts/hass-dev.sh up
+
+integration-up-auto:
+	@./scripts/hass-dev.sh up-auto
+
+integration-test:
+	@./scripts/hass-dev.sh test
+
+integration-auto: integration-up-auto integration-test
+	@echo ""
+	@echo "✅ Integration ready (pairing auto-approved)"
+	@echo "   Home Assistant:  http://127.0.0.1:8123"
+	@echo "   ThreadGate:      http://127.0.0.1:8081"
+
+integration-fresh:
+	@./scripts/hass-dev.sh cycle
+
+integration-fresh-auto:
+	@./scripts/hass-dev.sh cycle-auto
+
+integration-down:
+	@./scripts/hass-dev.sh down
+
+integration-reset:
+	@./scripts/hass-dev.sh reset
+
+integration-logs:
+	@./scripts/hass-dev.sh logs $(or $(LOGS),all)
+
+# Aliases (same scripts)
+hass-dev: integration-fresh-auto
+hass-up: integration-up
+hass-up-auto: integration-up-auto
+hass-test: integration-test
+hass-down: integration-down
+hass-reset: integration-reset
 
 fix: tidy fmt
 	@echo "🔧 Running go fix..."

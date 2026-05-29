@@ -1,5 +1,7 @@
 package topology
 
+import "github.com/MikeO7/threadgate/src/manager/internal/otctl"
+
 const (
 	keyExtAddr     = "ExtAddr"
 	keyRloc16      = "Rloc16"
@@ -10,19 +12,9 @@ const (
 	linkKindRoute  = "route"
 )
 
-// CollectMode controls how ot-ctl collection failures are handled during snapshot builds.
-type CollectMode int
-
-const (
-	// CollectBestEffort returns partial snapshots with warnings when commands fail.
-	CollectBestEffort CollectMode = iota
-	// CollectStrict fails the entire snapshot on the first ot-ctl error.
-	CollectStrict
-)
-
 // BuildOptions configures snapshot collection from ot-ctl.
 type BuildOptions struct {
-	Mode CollectMode
+	Policy otctl.Policy
 }
 
 // Snapshot is the unified topology model for API JSON and dashboard rendering.
@@ -72,6 +64,12 @@ type Neighbor struct {
 	NextHopRloc  string `json:"nextHopRloc,omitempty"`
 	Role         string `json:"role,omitempty"`
 	FriendlyName string `json:"friendlyName,omitempty"`
+	Manufacturer string `json:"manufacturer,omitempty"`
+	Model        string `json:"model,omitempty"`
+	SwVersion    string `json:"swVersion,omitempty"`
+	Battery      string `json:"battery,omitempty"`
+	Availability string `json:"availability,omitempty"`
+	HassDeviceID string `json:"hassDeviceId,omitempty"`
 }
 
 // ChildEntry represents a sleepy or end-device connected directly to this node.

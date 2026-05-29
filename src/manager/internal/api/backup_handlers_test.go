@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/MikeO7/threadgate/src/manager/internal/otctl"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
+	"github.com/MikeO7/threadgate/src/manager/internal/thread"
 	"github.com/MikeO7/threadgate/src/manager/internal/topology"
 )
 
@@ -29,7 +31,7 @@ func TestHandleBackupFilesFiltersAndErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/files", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFiles(rr, req)
@@ -57,7 +59,7 @@ func TestHandleBackupFilesFiltersAndErrors(t *testing.T) {
 
 func TestHandleBackupFileGetNotFound(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/files/missing.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileGet(rr, req, "missing.json")
@@ -68,7 +70,7 @@ func TestHandleBackupFileGetNotFound(t *testing.T) {
 
 func TestHandleBackupFileGetInvalidName(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/files/", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileGet(rr, req, "..")
@@ -89,9 +91,9 @@ func TestHandleBackupFileRestoreImportError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithThread(8081, thread.NewClient(thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("import failed")
-	}), CollectBestEffort), false, dir, nil)
+	}), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -112,12 +114,12 @@ func TestHandleBackupFileRestoreDefaultsVersion(t *testing.T) {
 	}
 
 	called := false
-	server := NewServerWithThread(8081, NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithThread(8081, thread.NewClient(thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if strings.Join(args, " ") == "dataset set active "+activeDatasetHex {
 			called = true
 		}
 		return "", nil
-	}), CollectBestEffort), false, dir, nil)
+	}), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -130,7 +132,7 @@ func TestHandleBackupFileRestoreDefaultsVersion(t *testing.T) {
 }
 
 func TestHandleBackupImportInvalidJSON(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/import", strings.NewReader("{"))
 	rr := httptest.NewRecorder()
 	server.handleBackupImport(rr, req)
@@ -140,7 +142,7 @@ func TestHandleBackupImportInvalidJSON(t *testing.T) {
 }
 
 func TestExportBackupMetadataError(t *testing.T) {
-	threads := NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	threads := thread.NewClient(thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		cmd := strings.Join(args, " ")
 		switch cmd {
 		case otctl.DatasetActive.Key():
@@ -152,7 +154,7 @@ func TestExportBackupMetadataError(t *testing.T) {
 		default:
 			return "ok", nil
 		}
-	}), CollectBestEffort)
+	}), thread.PolicyBestEffort)
 	store := NewBackupStore(threads, "")
 	_, err := store.Export(context.Background())
 	if err == nil {
@@ -161,7 +163,7 @@ func TestExportBackupMetadataError(t *testing.T) {
 }
 
 func TestImportBackupPendingOnly(t *testing.T) {
-	threads := NewThreadService(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), CollectBestEffort)
+	threads := thread.NewClient(mockBackupOtCtl(new(bool), new(bool), new(bool), new(bool)), thread.PolicyBestEffort)
 	store := NewBackupStore(threads, "")
 	err := store.Import(context.Background(), ConfigBackup{
 		ActiveDataset:  activeDatasetHex,
@@ -174,12 +176,13 @@ func TestImportBackupPendingOnly(t *testing.T) {
 
 func TestParseDatasetHexQuotedFallback(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(`"`+activeDatasetHex+`"`))
-	got, err := parseDatasetHex(req)
+	bodyBytes, _ := io.ReadAll(req.Body)
+	got, err := thread.ParseDatasetHTTPBody(bodyBytes)
 	if err != nil {
 		t.Fatalf("expected quoted fallback parse, got error: %v", err)
 	}
-	if got != activeDatasetHex {
-		t.Fatalf("unexpected fallback body: %q", got)
+	if got.Hex() != activeDatasetHex {
+		t.Fatalf("unexpected fallback body: %q", got.Hex())
 	}
 }
 
@@ -187,16 +190,16 @@ func TestHandleHealthWriteError(t *testing.T) {
 	_ = t
 	tracker := runtime.NewTracker()
 	tracker.UpdateRadioHealth("", "v1", "")
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", tracker)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/health", nil)
 	server.handleHealth(&failResponseWriter{}, req)
 }
 
 func TestSetActiveDatasetEmptyBody(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/active", strings.NewReader(""))
 	rr := httptest.NewRecorder()
-	server.setActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -204,7 +207,7 @@ func TestSetActiveDatasetEmptyBody(t *testing.T) {
 
 func TestHandleBackupFileRestoreNotFound(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/missing.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, "missing.json")
@@ -215,7 +218,7 @@ func TestHandleBackupFileRestoreNotFound(t *testing.T) {
 
 func TestHandleBackupFileInvalidName(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/files/..", nil)
 	req.URL.Path = "/api/backup/files/.."
 	rr := httptest.NewRecorder()
@@ -227,21 +230,21 @@ func TestHandleBackupFileInvalidName(t *testing.T) {
 
 func TestGetActiveDatasetWriteError(t *testing.T) {
 	_ = t
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if strings.Join(args, " ") == otctl.DatasetActive.Key() {
 			return activeDatasetHex, nil
 		}
 		return "", fmt.Errorf("unexpected")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/dataset/active", nil)
-	server.getActiveDataset(&failResponseWriter{}, req)
+	server.otbr.HandleActiveDataset(&failResponseWriter{}, req)
 }
 
 func TestSetPendingDatasetEmptyBody(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/pending", strings.NewReader(""))
 	rr := httptest.NewRecorder()
-	server.setPendingDataset(rr, req)
+	server.otbr.HandlePendingDataset(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -249,13 +252,13 @@ func TestSetPendingDatasetEmptyBody(t *testing.T) {
 
 func TestHandleDashboardWriteError(t *testing.T) {
 	_ = t
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), true, "", nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	server.handleDashboard(&failResponseWriter{}, req)
 }
 
 func TestHandleBackupImportMethodNotAllowed(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/import", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupImport(rr, req)

@@ -1,4 +1,3 @@
-// Package supervisor manages otbr-agent and supporting system daemons.
 package supervisor
 
 import (
@@ -34,21 +33,30 @@ func (r *processRegistry) track(cmd *exec.Cmd) chan struct{} {
 	return done
 }
 
-//nolint:gocognit,gocyclo // clean process termination loop
 func (r *processRegistry) stopAll(grace time.Duration) {
+	procs := r.takeProcesses()
+	sendTermSignals(procs)
+	waitForTermination(procs, time.Now().Add(grace))
+}
+
+func (r *processRegistry) takeProcesses() []*managedProcess {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	procs := append([]*managedProcess(nil), r.procs...)
 	r.procs = nil
-	r.mu.Unlock()
+	return procs
+}
 
-	deadline := time.Now().Add(grace)
+func sendTermSignals(procs []*managedProcess) {
 	for _, proc := range procs {
 		if proc == nil || proc.cmd == nil || proc.cmd.Process == nil {
 			continue
 		}
 		_ = proc.cmd.Process.Signal(syscall.SIGTERM)
 	}
+}
 
+func waitForTermination(procs []*managedProcess, deadline time.Time) {
 	for _, proc := range procs {
 		if proc == nil {
 			continue
@@ -56,9 +64,13 @@ func (r *processRegistry) stopAll(grace time.Duration) {
 		select {
 		case <-proc.done:
 		case <-time.After(time.Until(deadline)):
-			if proc.cmd != nil && proc.cmd.Process != nil {
-				_ = proc.cmd.Process.Kill()
-			}
+			killProcess(proc)
 		}
+	}
+}
+
+func killProcess(proc *managedProcess) {
+	if proc.cmd != nil && proc.cmd.Process != nil {
+		_ = proc.cmd.Process.Kill()
 	}
 }

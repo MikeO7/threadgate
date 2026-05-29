@@ -16,7 +16,7 @@ import (
 
 func TestHandleNodeInfoWriteError(t *testing.T) {
 	_ = t
-	server := NewServerWithOtCtl(8081, FuncOtCtl(mockNodeInfoOtCtl), false)
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(mockNodeInfoOtCtl), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/node", nil)
 	server.handleNodeInfo(&failResponseWriter{}, req)
 }
@@ -36,43 +36,43 @@ func (f *failResponseWriter) Write([]byte) (int, error) { return 0, fmt.Errorf("
 func (f *failResponseWriter) WriteHeader(int)           {}
 
 func TestGetActiveDatasetError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("dataset unavailable")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/dataset/active", nil)
 	rr := httptest.NewRecorder()
-	server.getActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
 func TestSetActiveDatasetServiceError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, _ ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(_ context.Context, _ ...string) (string, error) {
 		return "", fmt.Errorf("commit failed")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/active", strings.NewReader(activeDatasetHex))
 	rr := httptest.NewRecorder()
-	server.setActiveDataset(rr, req)
+	server.otbr.HandleActiveDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
 func TestGetPendingDatasetError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("pending unavailable")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/dataset/pending", nil)
 	rr := httptest.NewRecorder()
-	server.getPendingDataset(rr, req)
+	server.otbr.HandlePendingDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
 func TestHandleBackupSaveNoStateDir(t *testing.T) {
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, "", nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, "", nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/save", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupSave(rr, req)
@@ -83,7 +83,7 @@ func TestHandleBackupSaveNoStateDir(t *testing.T) {
 
 func TestHandleBackupFileMethodNotAllowed(t *testing.T) {
 	dir := t.TempDir()
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/api/backup/files/test.json", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFile(rr, req)
@@ -103,7 +103,7 @@ func TestHandleBackupFileRestoreValidationFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := NewServerWithThread(8081, NewThreadService(NewMockOtCtl(), CollectBestEffort), false, dir, nil)
+	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), false, dir, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/backup/files/"+name, nil)
 	rr := httptest.NewRecorder()
 	server.handleBackupFileRestore(rr, req, name)
@@ -113,29 +113,29 @@ func TestHandleBackupFileRestoreValidationFailure(t *testing.T) {
 }
 
 func TestHandlePendingDatasetMethodNotAllowed(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/node/dataset/pending", nil)
 	rr := httptest.NewRecorder()
-	server.handlePendingDataset(rr, req)
+	server.otbr.HandlePendingDataset(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("expected 405, got %d", rr.Code)
 	}
 }
 
 func TestSetPendingDatasetServiceError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("pending commit failed")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/node/dataset/pending", strings.NewReader(pendingDatasetHex))
 	rr := httptest.NewRecorder()
-	server.setPendingDataset(rr, req)
+	server.otbr.HandlePendingDataset(rr, req)
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
 func TestHandleDiagnosticsError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("diag failed")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/diagnostics", nil)
@@ -147,7 +147,7 @@ func TestHandleDiagnosticsError(t *testing.T) {
 }
 
 func TestHandleTopologyPartialSnapshot(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if len(args) > 0 && args[0] == otctl.State.Args[0] {
 			return "", fmt.Errorf("state unavailable")
 		}
@@ -162,7 +162,7 @@ func TestHandleTopologyPartialSnapshot(t *testing.T) {
 }
 
 func TestHandleBackupExportError(t *testing.T) {
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(context.Context, ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(context.Context, ...string) (string, error) {
 		return "", fmt.Errorf("export failed")
 	}), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup", nil)
@@ -174,7 +174,7 @@ func TestHandleBackupExportError(t *testing.T) {
 }
 
 func TestHandleBackupNotFoundRoute(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/backup/unknown", nil)
 	rr := httptest.NewRecorder()
 	server.handleBackup(rr, req)
@@ -184,12 +184,12 @@ func TestHandleBackupNotFoundRoute(t *testing.T) {
 }
 
 func TestThreadServiceNodeInfoPartialError(t *testing.T) {
-	svc := NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	svc := thread.NewClient(thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if len(args) > 0 && args[0] == otctl.State.Args[0] {
 			return "", fmt.Errorf("state failed")
 		}
 		return "ok", nil
-	}), CollectBestEffort)
+	}), thread.PolicyBestEffort)
 	_, err := svc.NodeInfo(context.Background())
 	if err == nil {
 		t.Fatal("expected node info error")
@@ -197,12 +197,12 @@ func TestThreadServiceNodeInfoPartialError(t *testing.T) {
 }
 
 func TestThreadServiceDiagnosticsPartialError(t *testing.T) {
-	svc := NewThreadService(FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	svc := thread.NewClient(thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		if len(args) > 0 && args[0] == otctl.Counters.Args[0] {
 			return "", fmt.Errorf("counters failed")
 		}
 		return "line", nil
-	}), CollectBestEffort)
+	}), thread.PolicyBestEffort)
 	_, err := svc.Diagnostics(context.Background())
 	if err == nil {
 		t.Fatal("expected diagnostics error")
@@ -220,7 +220,7 @@ func TestSplitLines(t *testing.T) {
 }
 
 func TestMockDatasetPendingCommands(t *testing.T) {
-	otctl := NewMockOtCtl()
+	otctl := thread.NewMock()
 	ctx := context.Background()
 	if _, err := otctl.Run(ctx, "dataset", "set", "pending", pendingDatasetHex); err != nil {
 		t.Fatalf("set pending failed: %v", err)
@@ -244,7 +244,7 @@ func TestHandleChannelScan(t *testing.T) {
 | 15 |  -92 |
 Done`
 
-	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+	server := NewServerWithOtCtl(8081, thread.FuncRunner(func(_ context.Context, args ...string) (string, error) {
 		key := otctl.Command{Args: args}.Key()
 		if key == otctl.ScanEnergy.Key() {
 			return mockOutput, nil
@@ -272,7 +272,7 @@ Done`
 }
 
 func TestHandleChannelScanMethodNotAllowed(t *testing.T) {
-	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	server := NewServerWithOtCtl(8081, thread.NewMock(), false)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/node/channels/scan", nil)
 	rr := httptest.NewRecorder()
 	server.handleChannelScan(rr, req)

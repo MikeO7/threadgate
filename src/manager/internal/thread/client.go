@@ -81,13 +81,29 @@ func (c *Client) SetPendingDataset(ctx context.Context, hexStr string) error {
 	return err
 }
 
+// SetNodeState enables or disables the Thread interface via ot-ctl.
+func (c *Client) SetNodeState(ctx context.Context, enable bool) error {
+	if enable {
+		if _, err := c.runner.Run(ctx, otctl.IfconfigUp.Args...); err != nil {
+			return err
+		}
+		_, err := c.runner.Run(ctx, otctl.ThreadStart.Args...)
+		return err
+	}
+	if _, err := c.runner.Run(ctx, otctl.ThreadStop.Args...); err != nil {
+		return err
+	}
+	_, err := c.runner.Run(ctx, otctl.IfconfigDown.Args...)
+	return err
+}
+
 // BuildSnapshot collects ot-ctl output and builds the dashboard topology model.
 func (c *Client) BuildSnapshot(ctx context.Context) (topology.Snapshot, error) {
-	mode := topology.CollectBestEffort
+	policy := otctl.PolicyBestEffort
 	if c.policy == PolicyStrict {
-		mode = topology.CollectStrict
+		policy = otctl.PolicyStrict
 	}
-	return topology.Build(ctx, c.runner, topology.BuildOptions{Mode: mode})
+	return topology.Build(ctx, c.runner, topology.BuildOptions{Policy: policy})
 }
 
 // BackupMetadata holds Thread network credential fields for export.
@@ -178,51 +194,65 @@ func ParseScanEnergyOutput(output string) ([]ChannelScanResult, error) {
 	return results, nil
 }
 
+const (
+	RatingExcellent = "Excellent"
+	RatingGood      = "Good"
+	RatingFair      = "Fair"
+	RatingPoor      = "Poor"
+)
+
 // AnalyzeChannel evaluates the channel RSSI and provides smart rating and Wi-Fi co-existence guidance.
 func AnalyzeChannel(channel int, rssi int) (string, string) {
-	var rating string
-	var reason string
+	rating := channelNoiseRating(rssi)
+	reason := channelCoexistenceReason(channel)
+	return rating, formatChannelAdvice(rating, rssi, reason)
+}
 
-	if rssi <= -85 {
-		rating = "Excellent"
-	} else if rssi <= -75 {
-		rating = "Good"
-	} else if rssi <= -65 {
-		rating = "Fair"
-	} else {
-		rating = "Poor"
+func channelNoiseRating(rssi int) string {
+	switch {
+	case rssi <= -85:
+		return RatingExcellent
+	case rssi <= -75:
+		return RatingGood
+	case rssi <= -65:
+		return RatingFair
+	default:
+		return RatingPoor
 	}
+}
 
+func channelCoexistenceReason(channel int) string {
 	switch channel {
 	case 11, 12, 13, 14:
-		reason = "Overlaps with 2.4GHz Wi-Fi Channel 1. Strong router traffic will introduce noise."
+		return "Overlaps with 2.4GHz Wi-Fi Channel 1. Strong router traffic will introduce noise."
 	case 15:
-		reason = "Quiet gap between 2.4GHz Wi-Fi Channels 1 and 6. Highly recommended!"
+		return "Quiet gap between 2.4GHz Wi-Fi Channels 1 and 6. Highly recommended!"
 	case 16, 17, 18, 19:
-		reason = "Overlaps with 2.4GHz Wi-Fi Channel 6 (common router default frequency)."
+		return "Overlaps with 2.4GHz Wi-Fi Channel 6 (common router default frequency)."
 	case 20:
-		reason = "Quiet gap between 2.4GHz Wi-Fi Channels 6 and 11. Excellent alternative channel."
+		return "Quiet gap between 2.4GHz Wi-Fi Channels 6 and 11. Excellent alternative channel."
 	case 21, 22, 23, 24:
-		reason = "Overlaps with 2.4GHz Wi-Fi Channel 11. Heavy traffic is common here."
+		return "Overlaps with 2.4GHz Wi-Fi Channel 11. Heavy traffic is common here."
 	case 25:
-		reason = "Sits above 2.4GHz Wi-Fi Channel 11. Highly clear and reliable frequency."
+		return "Sits above 2.4GHz Wi-Fi Channel 11. Highly clear and reliable frequency."
 	case 26:
-		reason = "Completely clear of standard Wi-Fi channels. Note that legacy hardware may have reduced power here."
+		return "Completely clear of standard Wi-Fi channels. Note that legacy hardware may have reduced power here."
 	default:
-		reason = "Standard IEEE 802.15.4 channel frequency."
+		return "Standard IEEE 802.15.4 channel frequency."
 	}
+}
 
-	var advice string
+func formatChannelAdvice(rating string, rssi int, reason string) string {
 	switch rating {
-	case "Excellent":
-		advice = fmt.Sprintf("Excellent (noise: %d dBm). %s", rssi, reason)
-	case "Good":
-		advice = fmt.Sprintf("Good (noise: %d dBm). %s", rssi, reason)
-	case "Fair":
-		advice = fmt.Sprintf("Fair (noise: %d dBm). %s", rssi, reason)
-	case "Poor":
-		advice = fmt.Sprintf("Poor (noise: %d dBm). %s Avoid this congested channel.", rssi, reason)
+	case RatingExcellent:
+		return fmt.Sprintf("Excellent (noise: %d dBm). %s", rssi, reason)
+	case RatingGood:
+		return fmt.Sprintf("Good (noise: %d dBm). %s", rssi, reason)
+	case RatingFair:
+		return fmt.Sprintf("Fair (noise: %d dBm). %s", rssi, reason)
+	case RatingPoor:
+		return fmt.Sprintf("Poor (noise: %d dBm). %s Avoid this congested channel.", rssi, reason)
+	default:
+		return reason
 	}
-
-	return rating, advice
 }

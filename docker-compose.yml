@@ -5,40 +5,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # Mandatory host networking to support border routing and mDNS discovery
+    # Mandatory host networking for border routing and mDNS discovery.
     network_mode: host
     restart: unless-stopped
-    # Privileged or specific capabilities required to manage Linux interface routing (wpan0)
-    privileged: true
-    # Alternately, for minimal security privileges, you can uncomment below and comment privileged: true
-    # cap_add:
-    #   - NET_ADMIN
-    #   - SYS_ADMIN
-    # devices:
-    #   - /dev/net/tun:/dev/net/tun
 
-    # Mount local USB coordinator to the container.
-    # If auto-discovery is enabled, it scans typical serial interfaces.
-    # Otherwise, specify the device explicitly.
+    # Prefer capabilities over full privileged mode (see README security section).
+    privileged: false
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
     devices:
+      - /dev/net/tun:/dev/net/tun
+      # Mount your Thread RCP coordinator (adjust path if auto-discovery is disabled).
       - /dev/ttyUSB0:/dev/ttyUSB0
 
     volumes:
-      # Persistent storage directory for operational datasets, backup states, and active credentials
       - ./data:/data
-      # Mount dev directory for USB scanning capabilities
       - /dev:/dev
-      # Mount dynamic interface nodes
       - /lib/modules:/lib/modules
 
     environment:
-      # Specify target radio URL explicitly OR leave empty for auto-discovery
       - OTBR_RADIO_URL=
-      # Default baudrate optimized for Silicon Labs CP2102 coordinators (ZBT-1 / Sonoff)
       - OTBR_BAUDRATE=460800
-      # REST API and Dashboard port
       - OTBR_PORT=8081
-      # Enable or disable USB auto-discovery (defaults to true)
       - OTBR_AUTO_DISCOVER=true
-      # Log levels: debug, info, warn, error
       - OTBR_LOG_LEVEL=info
+      # Optional: pre-seed HA URL/token (pairing via dashboard also writes /data/hass_config.json).
+      - OTBR_HASS_URL=
+      - OTBR_HASS_TOKEN=

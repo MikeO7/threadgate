@@ -1,9 +1,14 @@
 package api
 
+import "github.com/MikeO7/threadgate/src/manager/internal/thread"
+
+var (
+	activeDatasetHex  = thread.ValidOperationalDatasetHex
+	pendingDatasetHex = thread.MockPendingDataset
+)
+
 const (
-	activeDatasetHex  = "0e080000000000010000"
-	pendingDatasetHex = "0e080000000000019999"
-	mockNetworkName   = "ThreadGate-Mock"
+	mockNetworkName = "ThreadGate-Mock"
 
 	jsonKeyStatus  = "status"
 	jsonKeyMessage = "message"
@@ -11,4 +16,5 @@ const (
 
 	testNetworkName = "Thread-Test"
 	testGatewayKey  = "c000"
+	threadStateLeader = "leader"
 )

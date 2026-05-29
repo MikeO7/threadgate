@@ -15,4 +15,3 @@ var dashboardTopologyJS string
 
 //go:embed logo.svg
 var logoSVG string
-

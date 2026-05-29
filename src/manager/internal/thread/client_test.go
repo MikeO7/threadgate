@@ -71,8 +71,8 @@ func TestClientBuildSnapshotStrictMode(t *testing.T) {
 func snapshotFixtureOtCtl(t *testing.T) func(context.Context, ...string) (string, error) {
 	t.Helper()
 	fixtures := map[string]string{
-		otctl.State.Key():         "leader",
-		otctl.NetworkName.Key():   "Thread-Test",
+		otctl.State.Key():         mockLeader,
+		otctl.NetworkName.Key():   TestNetworkName,
 		otctl.ExtAddr.Key():       "1122334455667788",
 		otctl.PanID.Key():         "0x1234",
 		otctl.Channel.Key():       "15",
@@ -134,23 +134,15 @@ Done`
 		t.Fatalf("expected 4 results, got %d", len(results))
 	}
 
-	// Test channel 11 (-82 RSSI -> Good)
-	if results[0].Channel != 11 || results[0].RSSI != -82 || results[0].Rating != "Good" {
-		t.Errorf("channel 11 parsed incorrectly: %+v", results[0])
-	}
+	assertChannelScanResult(t, results[0], 11, -82, RatingGood)
+	assertChannelScanResult(t, results[1], 15, -92, RatingExcellent)
+	assertChannelScanResult(t, results[2], 20, -70, RatingFair)
+	assertChannelScanResult(t, results[3], 26, -55, RatingPoor)
+}
 
-	// Test channel 15 (-92 RSSI -> Excellent)
-	if results[1].Channel != 15 || results[1].RSSI != -92 || results[1].Rating != "Excellent" {
-		t.Errorf("channel 15 parsed incorrectly: %+v", results[1])
-	}
-
-	// Test channel 20 (-70 RSSI -> Fair)
-	if results[2].Channel != 20 || results[2].RSSI != -70 || results[2].Rating != "Fair" {
-		t.Errorf("channel 20 parsed incorrectly: %+v", results[2])
-	}
-
-	// Test channel 26 (-55 RSSI -> Poor)
-	if results[3].Channel != 26 || results[3].RSSI != -55 || results[3].Rating != "Poor" {
-		t.Errorf("channel 26 parsed incorrectly: %+v", results[3])
+func assertChannelScanResult(t *testing.T, got ChannelScanResult, wantChannel, wantRSSI int, wantRating string) {
+	t.Helper()
+	if got.Channel != wantChannel || got.RSSI != wantRSSI || got.Rating != wantRating {
+		t.Errorf("channel scan result = %+v, want channel=%d rssi=%d rating=%q", got, wantChannel, wantRSSI, wantRating)
 	}
 }
