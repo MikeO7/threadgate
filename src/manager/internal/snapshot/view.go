@@ -3,6 +3,7 @@ package snapshot
 import (
 	"context"
 
+	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
@@ -14,6 +15,7 @@ type DashboardModel struct {
 	HassEnabled bool
 	HassURL     string
 	Status      runtime.Status
+	SetupGuide  SetupGuide
 	RadioBadge  StatusBadge
 	ThreadBadge StatusBadge
 	HassBadge   StatusBadge
@@ -22,6 +24,7 @@ type DashboardModel struct {
 // BuildDashboard collects topology, enriches with HA names, and derives header badges.
 func (s *Service) BuildDashboard(ctx context.Context, port int, mockMode bool, status runtime.Status, hassEnabled bool, hassURL string) DashboardModel {
 	enriched := s.Build(ctx)
+	hostAudit := hardware.AuditHost(mockMode)
 	return DashboardModel{
 		Enriched:    enriched,
 		Port:        port,
@@ -29,6 +32,7 @@ func (s *Service) BuildDashboard(ctx context.Context, port int, mockMode bool, s
 		HassEnabled: hassEnabled,
 		HassURL:     hassURL,
 		Status:      status,
+		SetupGuide:  BuildSetupGuide(mockMode, hostAudit, status),
 		RadioBadge:  RadioBadge(status, mockMode),
 		ThreadBadge: ThreadBadge(enriched.Snapshot),
 		HassBadge:   HassBadge(enriched.HassStatus, enriched.HassError),

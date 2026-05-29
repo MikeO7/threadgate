@@ -40,6 +40,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		"contains": func(s, substr string) bool {
 			return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 		},
+		"add": func(a, b int) int {
+			return a + b
+		},
 	}).Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {
 		log.Printf("[API Server] Failed to execute template: %v\n", err)

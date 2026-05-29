@@ -70,6 +70,158 @@
         </div>
     </header>
 
+    {{if .SetupGuide.Needed}}
+    <div class="card error-card setup-checklist-card" style="border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: var(--surface);">
+        <style>
+            .setup-checklist-card { margin-bottom: 1rem; }
+            .setup-checklist-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 1rem;
+                margin-bottom: 1rem;
+            }
+            .setup-checklist-title {
+                margin: 0;
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: var(--text);
+            }
+            .setup-progress {
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: var(--accent);
+                background: color-mix(in srgb, var(--accent) 12%, transparent);
+                border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+                border-radius: 999px;
+                padding: 0.25rem 0.75rem;
+            }
+            .setup-step-list { display: flex; flex-direction: column; gap: 1rem; }
+            .setup-step {
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 0.85rem;
+                padding: 1rem;
+                border: 1px solid var(--border);
+                border-radius: var(--r-md);
+                background: color-mix(in srgb, var(--surface-elevated) 80%, transparent);
+            }
+            .setup-step.done { opacity: 0.72; border-color: color-mix(in srgb, var(--success) 30%, var(--border)); }
+            .setup-step-num {
+                width: 2rem;
+                height: 2rem;
+                border-radius: 999px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 0.85rem;
+                background: var(--accent-soft);
+                color: var(--accent);
+                flex-shrink: 0;
+            }
+            .setup-step.done .setup-step-num {
+                background: var(--success-soft);
+                color: var(--success);
+            }
+            .setup-step-title {
+                margin: 0 0 0.35rem;
+                font-size: 0.98rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+            .setup-step-desc {
+                margin: 0 0 0.65rem;
+                color: var(--text-muted);
+                line-height: 1.5;
+                font-size: 0.92rem;
+            }
+            .setup-step-note {
+                margin: 0.5rem 0 0;
+                color: var(--text-subtle);
+                font-size: 0.82rem;
+                line-height: 1.45;
+            }
+            .setup-cmd-block {
+                margin: 0;
+                padding: 0.75rem 0.9rem;
+                border-radius: var(--r-sm);
+                background: var(--bg);
+                border: 1px solid var(--border);
+                font-family: var(--font-mono);
+                font-size: 0.8rem;
+                line-height: 1.55;
+                color: var(--cyan);
+                overflow-x: auto;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .setup-step-done-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                color: var(--success);
+                font-weight: 600;
+                font-size: 0.85rem;
+            }
+            .setup-persist-block {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                border-top: 1px dashed var(--border);
+            }
+            .setup-persist-title {
+                margin: 0 0 0.5rem;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+        </style>
+        <div class="setup-checklist-header">
+            <div>
+                <h2 class="setup-checklist-title">Production Setup Checklist</h2>
+                <p style="margin: 0.35rem 0 0; color: var(--text-muted); font-size: 0.9rem;">Complete these steps on your Linux host in order. Host commands use <strong>sudo</strong> on the machine running Docker — not inside the container.</p>
+            </div>
+            <span class="setup-progress">{{.SetupGuide.Complete}} / {{.SetupGuide.Total}} complete</span>
+        </div>
+        <div class="setup-step-list">
+            {{range $i, $step := .SetupGuide.Steps}}
+            <div class="setup-step{{if $step.Done}} done{{end}}">
+                <div class="setup-step-num">{{add $i 1}}</div>
+                <div>
+                    <h3 class="setup-step-title">{{$step.Title}}</h3>
+                    <p class="setup-step-desc">{{$step.Description}}</p>
+                    {{if $step.Done}}
+                    <span class="setup-step-done-label">✓ Complete</span>
+                    {{else}}
+                    {{if $step.Commands}}
+                    <pre class="setup-cmd-block">{{range $step.Commands}}{{.}}
+{{end}}</pre>
+                    {{end}}
+                    {{if $step.Note}}<p class="setup-step-note">{{$step.Note}}</p>{{end}}
+                    {{if eq $step.ID "radio-flash-rcp"}}
+                    <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" rel="noopener" class="action-btn" style="margin-top: 0.75rem; display: inline-flex;">Open Silicon Labs Web Flasher</a>
+                    {{end}}
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+        {{if .SetupGuide.Persist}}
+        <div class="setup-persist-block">
+            <p class="setup-persist-title">Optional: persist host networking after reboot</p>
+            <p class="setup-step-desc" style="margin-bottom: 0.5rem;">Create <code>/etc/sysctl.d/99-threadgate.conf</code> with:</p>
+            <pre class="setup-cmd-block">{{range .SetupGuide.Persist}}{{.}}
+{{end}}
+# then apply:
+sudo sysctl --system</pre>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
     {{if .Status.ProbeError}}
     <div class="card error-card" style="border-color: var(--warning-soft); background: var(--surface);">
         <style>
@@ -268,7 +420,9 @@
                         </div>
                         <h4 class="setup-card-title" style="margin-top: 0.5rem;">Launch Web Flasher</h4>
                         {{if $isSilabs}}
-                            {{if contains .Status.DetectedDevice "sonoff"}}
+                            {{if contains .Status.DetectedDevice "mg24"}}
+                            <p class="setup-card-desc" style="color: var(--text); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">👉 <strong>Next steps:</strong> Open the flasher, select <strong>Sonoff Dongle Plus MG24</strong>, choose <strong>OpenThread RCP (Thread)</strong>, and flash at <strong>460800 baud</strong>.</p>
+                            {{else if contains .Status.DetectedDevice "sonoff"}}
                             <p class="setup-card-desc" style="color: var(--text); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">👉 <strong>Next steps:</strong> Open the flasher, select <strong>Sonoff ZBDongle-E</strong>, choose <strong>OpenThread RCP (Thread)</strong>, and flash at <strong>460800 baud</strong>.</p>
                             {{else}}
                             <p class="setup-card-desc" style="color: var(--text); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">👉 <strong>Next steps:</strong> Open the flasher, select <strong>Home Assistant SkyConnect / Connect ZBT-1</strong>, and choose <strong>OpenThread RCP (Thread)</strong>.</p>

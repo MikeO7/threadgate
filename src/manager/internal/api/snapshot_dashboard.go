@@ -25,6 +25,7 @@ type DashboardView struct {
 	TopologyJS   template.JS
 	TopologyJSON template.JS
 	Status       runtime.Status
+	SetupGuide   snapshot.SetupGuide
 }
 
 // NewDashboardView builds the SSR template model from a snapshot dashboard model.
@@ -45,6 +46,7 @@ func NewDashboardView(model snapshot.DashboardModel) DashboardView {
 		TopologyJS:   template.JS(dashboardTopologyJS), //nolint:gosec // G203: embedded static script
 		TopologyJSON: topologyJSON,
 		Status:       model.Status,
+		SetupGuide:   model.SetupGuide,
 	}
 }
 
