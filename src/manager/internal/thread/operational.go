@@ -75,11 +75,6 @@ func (d OperationalDataset) Decode() (DecodedDataset, error) {
 	return DecodeDataset(d.hex)
 }
 
-// ContainsInsecureKey reports whether the TLV embeds Home Assistant's flagged default network key.
-func (d OperationalDataset) ContainsInsecureKey() bool {
-	return DatasetContainsInsecureNetworkKey(d.hex)
-}
-
 // IsValidDatasetHex reports whether s is non-empty valid hex suitable for a TLV dataset.
 func IsValidDatasetHex(s string) bool {
 	_, err := ParseOperationalDatasetHex(s)
