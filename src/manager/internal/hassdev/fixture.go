@@ -15,12 +15,6 @@ const (
 	fixtureCredsName    = "ha-credentials.env"
 )
 
-// FixtureExists reports whether a golden HA fixture tarball is present.
-func FixtureExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 // BuildFixture archives ha-config and credentials for fast reuse.
 func BuildFixture(cfg Config) error {
 	_, _ = fmt.Fprintf(os.Stdout, "==> Building fixture %s\n", cfg.FixtureFile)

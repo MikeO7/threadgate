@@ -110,17 +110,6 @@ func ensureCoreConfigWithToken(ctx context.Context, cfg Config, creds Credential
 	return nil
 }
 
-// SetupFromFixture applies tarball, then waits for Home Assistant (must already be starting).
-func SetupFromFixture(ctx context.Context, cfg Config) error {
-	if err := ApplyFixture(cfg); err != nil {
-		return err
-	}
-	if _, err := LoadCredentials(cfg.CredsFile); err != nil {
-		return err
-	}
-	return WaitHomeAssistant(ctx, cfg, 5*time.Minute)
-}
-
 // RemovePairingState clears ThreadGate-side HASS pairing file.
 func RemovePairingState(cfg Config) error {
 	path := filepath.Join(cfg.Root, "data", "hass_config.json")
