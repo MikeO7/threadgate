@@ -1,0 +1,21 @@
+---
+description: Enforce strict adherence to static linting and CI/CD rules without modifying configurations. Applies to all AI models, agents, and assistants (including Cursor, Antigravity, etc.) editing this repository.
+globs: *
+alwaysApply: true
+---
+
+# Strict Linting and CI/CD Standards for AI and Agents
+
+## Core Rule
+**ALL AI assistants, agents, and automation tools (including Cursor, Antigravity, and any LLM-powered tools) editing this repository MUST strictly adhere to the existing static linting rules, pre-commit configurations, and CI/CD parameters. NEVER loosen, disable, bypass, or modify them to make code pass.**
+
+Any linting, formatting, or static analysis errors must be resolved by **refactoring/fixing the Go/source code** rather than modifying configuration files to silence the warnings.
+
+### Prohibited Actions
+- Do NOT modify `.golangci.yml` to disable linters, increase complexity thresholds, or add exclusions.
+- Do NOT disable, modify, or remove steps from `.pre-commit-config.yaml` or GitHub Actions workflows (`.github/workflows/*.yml`).
+- Do NOT use inline ignore comments (e.g., `//nolint`) as a first resort; always prefer refactoring/fixing the code to satisfy the original linter constraints.
+
+### Correct Action
+- Refactor the code to improve its structure, reduce complexity, handle errors properly, check return values, or whatever is required by the original lint rules.
+- If a linter reports an issue like `gocognit` (cognitive complexity), `gocyclo` (cyclomatic complexity), `funlen` (function length), or `errcheck` (unchecked errors), refactor the Go function by breaking it down into smaller helper functions or properly handling the errors.
