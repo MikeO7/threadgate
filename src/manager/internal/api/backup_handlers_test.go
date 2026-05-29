@@ -189,7 +189,7 @@ func TestParseDatasetHexQuotedFallback(t *testing.T) {
 func TestHandleHealthWriteError(t *testing.T) {
 	_ = t
 	tracker := runtime.NewTracker()
-	tracker.UpdateRadioHealth("", "v1", "")
+	tracker.UpdateRadioHealth("", "v1", "", "")
 	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/health", nil)
 	server.handleHealth(&failResponseWriter{}, req)

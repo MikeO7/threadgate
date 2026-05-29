@@ -13,7 +13,7 @@ import (
 
 func TestHandleCoprocessorVersion(t *testing.T) {
 	tracker := runtime.NewTracker()
-	tracker.UpdateRadioHealth("/dev/ttyUSB0", "RCP/2.0.0-test", "")
+	tracker.UpdateRadioHealth("/dev/ttyUSB0", "RCP/2.0.0-test", "", "")
 	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/node/coprocessor/version", nil)

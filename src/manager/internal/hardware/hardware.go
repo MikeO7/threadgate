@@ -611,6 +611,9 @@ func ProbeDevice(portPath string, baudrate int) (string, error) {
 	version, err := readProbeResponse(port)
 	if err != nil {
 		log.Printf("[Hardware] Probe error: failed to read valid response from %s: %v\n", portPath, err)
+		if desc, vid, pid, ok := DetectMacSerialSignature(); ok {
+			return "", fmt.Errorf("spinel probe timed out or returned invalid response. Detected physical device: %s (VID: %s, PID: %s). Your USB coordinator is running Zigbee or Multiprotocol firmware. Please flash it with Thread RCP firmware using the Silicon Labs Web Flasher: https://darkxst.github.io/silabs-firmware-builder/", desc, vid, pid)
+		}
 		return "", err
 	}
 	log.Printf("[Hardware] Probe success: discovered firmware version: %s\n", version)
@@ -642,4 +645,80 @@ func readProbeResponse(port serial.Port) (string, error) {
 	}
 
 	return "", fmt.Errorf("spinel probe timed out or returned invalid response (detected CPC/MultiPAN or incorrect firmware)")
+}
+
+// runIoregCmd executes the ioreg command on macOS to fetch USB device trees. (Overridable in tests).
+var runIoregCmd = func() ([]byte, error) {
+	cmd := exec.Command("ioreg", "-p", "IOUSB", "-l")
+	return cmd.Output()
+}
+
+// DetectMacSerialSignature scans macOS USB devices to see if a known coordinator is plugged in.
+func DetectMacSerialSignature() (desc, vid, pid string, found bool) {
+	out, err := runIoregCmd()
+	if err != nil {
+		return "", "", "", false
+	}
+
+	lines := strings.Split(string(out), "\n")
+	var currentProduct, currentVendor, currentVID, currentPID string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "\"USB Product Name\"") || strings.Contains(line, "\"kUSBProductString\"") {
+			parts := strings.Split(line, "=")
+			if len(parts) > 1 {
+				currentProduct = strings.Trim(parts[1], " \"")
+			}
+		} else if strings.Contains(line, "\"USB Vendor Name\"") || strings.Contains(line, "\"kUSBVendorString\"") {
+			parts := strings.Split(line, "=")
+			if len(parts) > 1 {
+				currentVendor = strings.Trim(parts[1], " \"")
+			}
+		} else if strings.Contains(line, "\"idVendor\"") {
+			parts := strings.Split(line, "=")
+			if len(parts) > 1 {
+				currentVID = strings.TrimSpace(parts[1])
+			}
+		} else if strings.Contains(line, "\"idProduct\"") {
+			parts := strings.Split(line, "=")
+			if len(parts) > 1 {
+				currentPID = strings.TrimSpace(parts[1])
+			}
+			// When we hit idProduct, we have finished a device block. Let's check it!
+			if currentVID != "" && currentPID != "" {
+				// Convert decimal ID to hex for matching targetSignatures
+				var vDec, pDec int64
+				fmt.Sscanf(currentVID, "%d", &vDec)
+				fmt.Sscanf(currentPID, "%d", &pDec)
+				hexKey := fmt.Sprintf("%04x:%04x", vDec, pDec)
+				if sig, exists := targetSignatures[hexKey]; exists {
+					desc = sig.Desc
+					if currentProduct != "" {
+						desc = fmt.Sprintf("%s (%s)", currentProduct, sig.Desc)
+					}
+					return desc, fmt.Sprintf("%04x", vDec), fmt.Sprintf("%04x", pDec), true
+				}
+
+				lowerProd := strings.ToLower(currentProduct)
+				lowerVendor := strings.ToLower(currentVendor)
+
+				if strings.Contains(lowerProd, "sonoff") || strings.Contains(lowerProd, "dongle") ||
+					strings.Contains(lowerProd, "skyconnect") || strings.Contains(lowerProd, "zbt") ||
+					strings.Contains(lowerProd, "cp210") || strings.Contains(lowerProd, "ch34") ||
+					strings.Contains(lowerProd, "ftdi") || strings.Contains(lowerProd, "pl2303") ||
+					strings.Contains(lowerProd, "nordic") || strings.Contains(lowerProd, "nrf52840") ||
+					strings.Contains(lowerVendor, "sonoff") || strings.Contains(lowerVendor, "silabs") ||
+					strings.Contains(lowerVendor, "nordic") {
+
+					desc = currentProduct
+					if currentVendor != "" && !strings.Contains(lowerProd, strings.ToLower(currentVendor)) {
+						desc = fmt.Sprintf("%s %s", currentVendor, currentProduct)
+					}
+					return desc, fmt.Sprintf("%04x", vDec), fmt.Sprintf("%04x", pDec), true
+				}
+			}
+		}
+	}
+	return "", "", "", false
 }

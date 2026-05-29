@@ -14,7 +14,7 @@ import (
 
 func TestHandleCoprocessorVersion(t *testing.T) {
 	tracker := runtime.NewTracker()
-	tracker.UpdateRadioHealth("/dev/ttyUSB0", "RCP/2.0.0-test", "")
+	tracker.UpdateRadioHealth("/dev/ttyUSB0", "RCP/2.0.0-test", "", "")
 	h := &Handler{
 		Ops:    &ClientAdapter{Client: thread.NewClient(thread.NewMock(), thread.PolicyBestEffort)},
 		Status: tracker,

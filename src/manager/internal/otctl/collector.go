@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -60,7 +61,7 @@ func CollectSequential(ctx context.Context, runner Runner, assignments []Assignm
 				firstErr = err
 			}
 			if policy == PolicyStrict {
-				return warnings, fmt.Errorf("%s: %w", item.Cmd.Label, err)
+				return deduplicateWarnings(warnings), fmt.Errorf("%s: %w", item.Cmd.Label, err)
 			}
 			continue
 		}
@@ -68,6 +69,28 @@ func CollectSequential(ctx context.Context, runner Runner, assignments []Assignm
 	}
 
 	return finalizeWarnings(policy, warnings, firstErr)
+}
+
+func deduplicateWarnings(warnings []string) []string {
+	seen := make(map[string]bool)
+	var deduped []string
+	hasMissingPath := false
+
+	for _, w := range warnings {
+		if strings.Contains(w, "executable file not found in $PATH") {
+			if !hasMissingPath {
+				deduped = append(deduped, "ot-ctl: executable file not found in $PATH (mDNS/Thread service may be offline)")
+				hasMissingPath = true
+			}
+			continue
+		}
+		if !seen[w] {
+			seen[w] = true
+			deduped = append(deduped, w)
+		}
+	}
+	sort.Strings(deduped)
+	return deduped
 }
 
 func finalizeValues(results []cmdResult, policy Policy) (map[string]string, []string, error) {
@@ -81,36 +104,36 @@ func finalizeValues(results []cmdResult, policy Policy) (map[string]string, []st
 				firstErr = res.err
 			}
 			if policy == PolicyStrict {
-				return nil, warnings, fmt.Errorf("snapshot: %s: %w", res.label, res.err)
+				return nil, deduplicateWarnings(warnings), fmt.Errorf("snapshot: %s: %w", res.label, res.err)
 			}
 			continue
 		}
 		values[res.label] = res.value
 	}
-	sort.Strings(warnings)
+	deduped := deduplicateWarnings(warnings)
 	if firstErr == nil {
-		return values, warnings, nil
+		return values, deduped, nil
 	}
 	if policy == PolicyBestEffort {
-		return values, warnings, fmt.Errorf("collection partial: %w", firstErr)
+		return values, deduped, fmt.Errorf("collection partial: %w", firstErr)
 	}
 	if policy == PolicyBackupExport {
-		return values, warnings, fmt.Errorf("backup metadata: %w", firstErr)
+		return values, deduped, fmt.Errorf("backup metadata: %w", firstErr)
 	}
-	return values, warnings, nil
+	return values, deduped, nil
 }
 
 func finalizeWarnings(policy Policy, warnings []string, firstErr error) ([]string, error) {
-	sort.Strings(warnings)
+	deduped := deduplicateWarnings(warnings)
 	if firstErr == nil {
-		return warnings, nil
+		return deduped, nil
 	}
 	switch policy {
 	case PolicyBestEffort:
-		return warnings, fmt.Errorf("collection partial: %w", firstErr)
+		return deduped, fmt.Errorf("collection partial: %w", firstErr)
 	case PolicyBackupExport:
-		return warnings, fmt.Errorf("backup metadata: %w", firstErr)
+		return deduped, fmt.Errorf("backup metadata: %w", firstErr)
 	default:
-		return warnings, nil
+		return deduped, nil
 	}
 }

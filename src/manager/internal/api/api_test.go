@@ -156,7 +156,7 @@ func TestMockMeshTables(t *testing.T) {
 
 func TestHandleHealth(t *testing.T) {
 	tracker := runtime.NewTracker()
-	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "")
+	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "", "")
 
 	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), "GET", "/api/health", nil)

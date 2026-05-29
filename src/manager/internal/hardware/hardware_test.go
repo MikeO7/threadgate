@@ -1,6 +1,7 @@
 package hardware
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -84,23 +85,52 @@ func TestGetBaudrateFromHardwareName(t *testing.T) {
 	}
 }
 
-func TestGetFlowControlFromHardwareName(t *testing.T) {
-	tests := []struct {
-		name     string
-		expected bool
-	}{
-		{"usb-silabs-zbt-1-if00", true},
-		{"usb-home_assistant_skyconnect-if00", true},
-		{"usb-nordic_semiconductor_nrf52840-if00", false},
-		{"usb-ftdi_ft232r-if00", false},
-		{"usb-ch340-if00", false},
-		{"something_random", false},
+func TestDetectMacSerialSignature(t *testing.T) {
+	oldRun := runIoregCmd
+	defer func() { runIoregCmd = oldRun }()
+
+	// 1. Mocking a CP2102N device
+	runIoregCmd = func() ([]byte, error) {
+		return []byte(`
+      +-o SONOFF Dongle Plus MG24@01200000  <class IOUSBHostDevice, id 0x1000891d0>
+          {
+            "kUSBProductString" = "SONOFF Dongle Plus MG24"
+            "USB Vendor Name" = "SONOFF"
+            "idVendor" = 4292
+            "idProduct" = 60000
+          }
+`), nil
 	}
 
-	for _, tt := range tests {
-		result := getFlowControlFromHardwareName(tt.name)
-		if result != tt.expected {
-			t.Errorf("getFlowControlFromHardwareName(%q) = %t; want %t", tt.name, result, tt.expected)
-		}
+	desc, vid, pid, found := DetectMacSerialSignature()
+	if !found {
+		t.Fatal("expected device to be detected")
+	}
+	if !strings.Contains(desc, "Silicon Labs CP210x") && !strings.Contains(desc, "SONOFF") {
+		t.Errorf("unexpected description: %q", desc)
+	}
+	if vid != "10c4" || pid != "ea60" {
+		t.Errorf("unexpected VID/PID: %s:%s", vid, pid)
+	}
+
+	// 2. Mocking a generic Nordic device
+	runIoregCmd = func() ([]byte, error) {
+		return []byte(`
+      +-o Nordic nRF52840@01200000  <class IOUSBHostDevice, id 0x1000891d0>
+          {
+            "kUSBProductString" = "Nordic Semiconductor nRF52840 Thread Dongle (RCP)"
+            "USB Vendor Name" = "Nordic"
+            "idVendor" = 6421
+            "idProduct" = 21135
+          }
+`), nil
+	}
+
+	desc, vid, pid, found = DetectMacSerialSignature()
+	if !found {
+		t.Fatal("expected Nordic device to be detected")
+	}
+	if vid != "1915" || pid != "528f" {
+		t.Errorf("unexpected Nordic VID/PID: %s:%s", vid, pid)
 	}
 }

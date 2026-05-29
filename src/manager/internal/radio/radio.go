@@ -183,6 +183,14 @@ func (b *Binding) Refresh() error {
 }
 
 func (b *Binding) resolve(forceDiscover bool) error {
+	if strings.Contains(b.cfg.RadioURL, "://") && !forceDiscover {
+		b.mu.Lock()
+		b.spinelURL = b.cfg.RadioURL
+		b.devicePath = b.cfg.RadioURL
+		b.mu.Unlock()
+		return nil
+	}
+
 	p, err := resolveProfile(b.cfg, forceDiscover)
 	if err != nil {
 		return fmt.Errorf("%v (please set OTBR_RADIO_URL explicitly)", err)
@@ -212,8 +220,15 @@ func (b *Binding) probeAndUpdateStatus() {
 		b.mu.RUnlock()
 	}
 
+	detectedDevice := ""
+	if probeErr != nil {
+		if desc, vid, pid, ok := hardware.DetectMacSerialSignature(); ok {
+			detectedDevice = fmt.Sprintf("%s (VID: %s, PID: %s)", desc, vid, pid)
+		}
+	}
+
 	if b.status != nil {
-		b.status.UpdateRadioHealth(path, version, errStr)
+		b.status.UpdateRadioHealth(path, version, errStr, detectedDevice)
 	}
 }
 
@@ -227,7 +242,7 @@ func probe(cfg radioConfig, radioURL string) (probedVersion, devicePath string, 
 	devicePath = p.DevicePath
 	baudrate := p.Baudrate
 
-	if cfg.MockMode {
+	if cfg.MockMode && strings.Contains(devicePath, "ttyMOCK") {
 		if os.Getenv("THREADGATE_MOCK_PROBE_ERROR") != "" {
 			mockErr := fmt.Errorf("spinel probe timed out or returned invalid response (detected CPC/MultiPAN or incorrect firmware)")
 			log.Printf("[Radio] Mock mode active: simulating hardware probe error due to THREADGATE_MOCK_PROBE_ERROR: %v\n", mockErr)

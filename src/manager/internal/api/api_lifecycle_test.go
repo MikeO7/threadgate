@@ -203,7 +203,7 @@ func TestHandleNodeInfoError(t *testing.T) {
 
 func TestHandleHealthWithReporter(t *testing.T) {
 	tracker := runtime.NewTracker()
-	tracker.UpdateRadioHealth("", "v1", "")
+	tracker.UpdateRadioHealth("", "v1", "", "")
 	server := NewServerWithThread(8081, thread.NewClient(thread.NewMock(), thread.PolicyBestEffort), true, "", tracker)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/health", nil)
 	rr := httptest.NewRecorder()

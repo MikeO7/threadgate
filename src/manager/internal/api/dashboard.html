@@ -71,55 +71,224 @@
     </header>
 
     {{if .Status.ProbeError}}
-    <div class="card error-card">
-        <div class="error-head">
-            <div class="error-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div>
-                <h3 class="error-title">Radio Hardware Probe Failed</h3>
-                <p class="error-sub">Path: <strong style="color: var(--text);">{{.Status.RadioPath}}</strong> &middot; <span style="color: var(--danger);">{{.Status.ProbeError}}</span></p>
-            </div>
-        </div>
-
-        <p class="section-note" style="margin-bottom: 1.25rem;">
-            Your USB dongle must run standard <strong>OpenThread RCP (Radio Co-Processor)</strong> firmware. If it currently runs Zigbee or Multiprotocol (Multi-PAN) firmware, select your platform below to flash it:
-        </p>
-
-        <div class="fw-grid">
-            <div class="fw-col">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <span class="fw-tag silabs">Silabs</span>
-                        <h5 style="font-size: 0.85rem; font-weight: 600; margin: 0;">SkyConnect, ZBT-1, Sonoff ZBDongle-E</h5>
+    <div class="card error-card" style="border-color: var(--warning-soft); background: var(--surface);">
+        <style>
+            .setup-container {
+                display: flex;
+                flex-direction: column;
+                gap: 1.25rem;
+            }
+            .setup-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 1rem;
+            }
+            .setup-title-group {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            .setup-icon {
+                background: var(--warning-soft);
+                color: var(--warning);
+                padding: 0.55rem;
+                border-radius: var(--r-sm);
+                display: flex;
+                flex-shrink: 0;
+            }
+            .setup-title {
+                color: var(--text);
+                font-size: 1.05rem;
+                font-weight: 600;
+                margin: 0;
+            }
+            .setup-badge {
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 0.25rem 0.6rem;
+                background: var(--warning-soft);
+                border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+                border-radius: 6px;
+                color: var(--warning);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .setup-meta-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem 1.5rem;
+                font-size: 0.82rem;
+                color: var(--text-muted);
+                align-items: center;
+            }
+            .setup-meta-item {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .setup-meta-value {
+                font-family: var(--font-mono);
+                color: var(--text);
+                background: var(--surface-2);
+                padding: 0.15rem 0.45rem;
+                border-radius: 5px;
+                border: 1px solid var(--border);
+            }
+            .setup-instruction {
+                font-size: 0.88rem;
+                line-height: 1.5;
+                color: var(--text-muted);
+                margin: 0;
+            }
+            .setup-instruction strong {
+                color: var(--text);
+            }
+            .setup-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 1rem;
+            }
+            .setup-card {
+                background: var(--surface-2);
+                border: 1.5px solid var(--border);
+                padding: 1.25rem;
+                border-radius: var(--r-md);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                gap: 1rem;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }
+            .setup-card:hover {
+                border-color: var(--border-strong);
+                transform: translateY(-2px);
+                background: var(--surface-3);
+            }
+            .setup-card.highlighted {
+                border-color: var(--warning);
+                background: color-mix(in srgb, var(--warning) 3%, var(--surface-2));
+                box-shadow: 0 4px 20px color-mix(in srgb, var(--warning) 8%, transparent);
+            }
+            .setup-card.highlighted:hover {
+                border-color: color-mix(in srgb, var(--warning) 85%, #fff);
+                background: color-mix(in srgb, var(--warning) 5%, var(--surface-2));
+            }
+            .setup-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+            .setup-card-title {
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: var(--text);
+                margin: 0;
+            }
+            .setup-card-desc {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                line-height: 1.45;
+                margin: 0.35rem 0 0 0;
+            }
+            .setup-card-action {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: var(--accent);
+                transition: color 0.2s;
+            }
+            .setup-card.highlighted .setup-card-action {
+                color: var(--warning);
+            }
+            .setup-card-action svg {
+                transition: transform 0.2s;
+            }
+            .setup-card:hover .setup-card-action svg {
+                transform: translateX(3px);
+            }
+        </style>
+        <div class="setup-container">
+            <!-- Header section with status and info -->
+            <div class="setup-header">
+                <div class="setup-title-group">
+                    <div class="setup-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                     </div>
-                    <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.6;">
-                        <li>Uses EFR32MG21 / MG24 SoC</li>
-                        <li>Requires standard RCP firmware at <strong>460800 baud</strong></li>
-                        <li>Do not use Multiprotocol (CPC) builds</li>
-                    </ul>
+                    <div>
+                        <h3 class="setup-title">Thread Radio Configuration Required</h3>
+                        <div class="setup-meta-row" style="margin-top: 0.35rem;">
+                            <div class="setup-meta-item">
+                                <span>Port:</span>
+                                <span class="setup-meta-value">{{.Status.RadioPath}}</span>
+                            </div>
+                            {{if .Status.DetectedDevice}}
+                            <div class="setup-meta-item">
+                                <span>Detected Device:</span>
+                                <span class="setup-meta-value" style="color: var(--warning); font-weight: 600;">{{.Status.DetectedDevice}}</span>
+                            </div>
+                            {{end}}
+                        </div>
+                    </div>
                 </div>
-                <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" rel="noopener" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Launch Silabs Web Flasher
+                {{if .Status.DetectedDevice}}
+                <span class="setup-badge">Zigbee / Multi-PAN Mode</span>
+                {{else}}
+                <span class="setup-badge" style="background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, transparent);">Probe Failed</span>
+                {{end}}
+            </div>
+
+            <!-- Context message -->
+            <p class="setup-instruction">
+                {{if .Status.DetectedDevice}}
+                Your physical USB dongle was detected, but it is currently running Zigbee or Multiprotocol firmware. To act as a Thread Border Router, it must be flashed with standard <strong>OpenThread RCP (Radio Co-Processor)</strong> firmware.
+                {{else}}
+                Could not establish communication with the Thread radio co-processor. Please verify that your radio hardware is connected to the path above and has standard OpenThread RCP firmware flashed: <span style="color: var(--danger);">{{.Status.ProbeError}}</span>
+                {{end}}
+            </p>
+
+            <!-- Actions grid -->
+            <div class="setup-grid">
+                <!-- Silicon Labs Card -->
+                {{$isSilabs := and .Status.DetectedDevice (or (contains .Status.DetectedDevice "sonoff") (contains .Status.DetectedDevice "zbt") (contains .Status.DetectedDevice "skyconnect") (contains .Status.DetectedDevice "cp210"))}}
+                <a href="https://darkxst.github.io/silabs-firmware-builder/" target="_blank" rel="noopener" class="setup-card {{if $isSilabs}}highlighted{{end}}">
+                    <div>
+                        <div class="setup-card-header">
+                            <span class="fw-tag silabs">Silicon Labs</span>
+                            {{if $isSilabs}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase;">Matches Device</span>{{end}}
+                        </div>
+                        <h4 class="setup-card-title" style="margin-top: 0.5rem;">Launch Web Flasher</h4>
+                        <p class="setup-card-desc">For SkyConnect, ZBT-1, and Sonoff ZBDongle-E. Flashes the recommended RCP firmware at 460800 baud directly from your browser.</p>
+                    </div>
+                    <div class="setup-card-action">
+                        <span>Open Web Flasher</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </div>
                 </a>
-            </div>
 
-            <div class="fw-col">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <span class="fw-tag nordic">Nordic</span>
-                        <h5 style="font-size: 0.85rem; font-weight: 600; margin: 0;">Nordic nRF52840 Dongle</h5>
+                <!-- Nordic Card -->
+                {{$isNordic := and .Status.DetectedDevice (or (contains .Status.DetectedDevice "nordic") (contains .Status.DetectedDevice "nrf52840"))}}
+                <a href="https://openthread.io/platforms/co-processor" target="_blank" rel="noopener" class="setup-card {{if $isNordic}}highlighted{{end}}">
+                    <div>
+                        <div class="setup-card-header">
+                            <span class="fw-tag nordic">Nordic Semi</span>
+                            {{if $isNordic}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase;">Matches Device</span>{{end}}
+                        </div>
+                        <h4 class="setup-card-title" style="margin-top: 0.5rem;">Nordic nRF52840 Guide</h4>
+                        <p class="setup-card-desc">Flashes the standard Nordic ot-rcp build in bootloader mode (pulsing red LED) using the desktop nRF Connect Programmer.</p>
                     </div>
-                    <ul style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.1rem; margin: 0 0 1.25rem; line-height: 1.6;">
-                        <li>Requires the standard Nordic <strong>ot-rcp</strong> build</li>
-                        <li>Flash using the <strong>nRF Connect Programmer</strong> desktop app</li>
-                        <li>Write hex in bootloader mode (pulsing red LED)</li>
-                    </ul>
-                </div>
-                <a href="https://openthread.io/platforms/co-processor" target="_blank" rel="noopener" class="cyber-button secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Nordic RCP Docs
+                    <div class="setup-card-action">
+                        <span>View Flashing Docs</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </div>
                 </a>
             </div>
         </div>

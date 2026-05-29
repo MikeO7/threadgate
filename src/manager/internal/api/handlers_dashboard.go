@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/pairing"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
@@ -35,6 +36,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 				return val < 15
 			}
 			return false
+		},
+		"contains": func(s, substr string) bool {
+			return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 		},
 	}).Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {

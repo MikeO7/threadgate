@@ -58,7 +58,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 
 	if err := s.startDbus(); err != nil {
-		return fmt.Errorf("failed to start dbus-daemon: %w", err)
+		log.Printf("[Supervisor] Warning: failed to start dbus-daemon: %v. Proceeding without host D-Bus.\n", err)
 	}
 
 	time.Sleep(daemonBootDelay)
@@ -211,7 +211,10 @@ func (s *Supervisor) runAgentOnce() {
 	if err := agentCmd.Start(); err != nil {
 		s.setAgentStatus("restarting", err.Error())
 		log.Printf("[Supervisor] Error starting otbr-agent: %v. Retrying in 5 seconds...\n", err)
-		time.Sleep(5 * time.Second)
+		select {
+		case <-s.ctx.Done():
+		case <-time.After(5 * time.Second):
+		}
 		return
 	}
 
@@ -226,9 +229,8 @@ func (s *Supervisor) runAgentOnce() {
 	case <-s.ctx.Done():
 		s.setAgentStatus("stopped", "")
 		return
-	default:
-		log.Println("[Supervisor] Self-healing trigger: restarting otbr-agent in 3 seconds...")
-		time.Sleep(3 * time.Second)
+	case <-time.After(3 * time.Second):
+		log.Println("[Supervisor] Self-healing trigger: restarting otbr-agent...")
 	}
 }
 

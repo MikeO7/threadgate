@@ -58,6 +58,10 @@ func (a *App) Run() error {
 		log.Printf("[App] WARNING: Port %d was already in use! Auto-detected free port %d instead for the dashboard/API.\n", originalPort, a.cfg.Port)
 	}
 
+	if err := ensureStatePersistence(a.cfg); err != nil {
+		log.Printf("[App] WARNING: Thread state persistence redirection failed: %v. Network state will not be persisted across container restarts!\n", err)
+	}
+
 	runtimeEnv, err := env.Bootstrap(a.cfg)
 	if err != nil {
 		return fmt.Errorf("bootstrap failed: %w", err)

@@ -9,7 +9,7 @@ import (
 func TestTracker(t *testing.T) {
 	tracker := NewTracker()
 	tracker.SetHostAudit(hardware.HostAudit{TunDeviceExists: true})
-	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "")
+	tracker.UpdateRadioHealth("/dev/ttyTEST", "TestVersion/1.0", "", "")
 	tracker.UpdateAgent("running", "")
 
 	status := tracker.GetStatus()
@@ -23,7 +23,7 @@ func TestTracker(t *testing.T) {
 		t.Errorf("expected agent running, got %q", status.Agent.State)
 	}
 
-	tracker.UpdateRadioHealth("/dev/ttyUPDATED", "NewVersion/2.0", "probe failed")
+	tracker.UpdateRadioHealth("/dev/ttyUPDATED", "NewVersion/2.0", "probe failed", "")
 	status = tracker.GetStatus()
 	if status.RadioPath != "/dev/ttyUPDATED" {
 		t.Errorf("expected updated path, got %q", status.RadioPath)

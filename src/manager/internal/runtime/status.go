@@ -22,6 +22,7 @@ type Status struct {
 	ProbeError    string             `json:"probeError,omitempty"`
 	RadioPath     string             `json:"radioPath,omitempty"`
 	Agent         AgentStatus        `json:"agent"`
+	DetectedDevice string             `json:"detectedDevice,omitempty"`
 }
 
 // Reporter provides read-only access to orchestration status (/api/health).
@@ -55,12 +56,13 @@ func (t *Tracker) SetHostAudit(audit hardware.HostAudit) {
 }
 
 // UpdateRadioHealth updates radio path and probe results.
-func (t *Tracker) UpdateRadioHealth(path, version, errStr string) {
+func (t *Tracker) UpdateRadioHealth(path, version, errStr, detected string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.status.RadioPath = path
 	t.status.ProbedVersion = version
 	t.status.ProbeError = errStr
+	t.status.DetectedDevice = detected
 }
 
 // UpdateAgent records supervisor agent lifecycle transitions.
