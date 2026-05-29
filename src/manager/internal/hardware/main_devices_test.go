@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	silabsVID       = "10c4"
-	silabsPID       = "ea60"
-	macSonoffSerial = "cu.usbserial-11410"
-	linuxTTYACM0    = "ttyACM0"
+	silabsVID    = "10c4"
+	silabsPID    = "ea60"
+	linuxTTYUSB0 = "ttyUSB0"
+	linuxTTYACM0 = "ttyACM0"
 )
 
 // mainCoordinator represents a popular Thread USB coordinator for discovery tests.
@@ -22,104 +22,90 @@ type mainCoordinator struct {
 	vid            string
 	pid            string
 	serialByIDName string
-	macProduct     string
-	macVendor      string
-	macVendorDec   int
-	macProductDec  int
 	wantBaud       int
 	wantFlow       bool
 }
 
 var mainCoordinators = []mainCoordinator{
 	{
-		name: "Home Assistant Connect ZBT-1",
-		vid:  silabsVID, pid: silabsPID,
+		name:           "Home Assistant Connect ZBT-1",
+		vid:            silabsVID,
+		pid:            silabsPID,
 		serialByIDName: "usb-Silicon_Labs_Home_Assistant_Connect_ZBT-1-if00-port0",
-		macProduct:     "Home Assistant Connect ZBT-1",
-		macVendor:      "Silicon Labs",
-		macVendorDec:   0x10c4, macProductDec: 0xea60,
-		wantBaud: 460800, wantFlow: true,
+		wantBaud:       460800,
+		wantFlow:       true,
 	},
 	{
-		name: "Nabu Casa SkyConnect",
-		vid:  silabsVID, pid: silabsPID,
+		name:           "Nabu Casa SkyConnect",
+		vid:            silabsVID,
+		pid:            silabsPID,
 		serialByIDName: "usb-Nabu_Casa_HA_SkyConnect-if00-port0",
-		macProduct:     "Home Assistant SkyConnect",
-		macVendor:      "Nabu Casa",
-		macVendorDec:   0x10c4, macProductDec: 0xea60,
-		wantBaud: 460800, wantFlow: true,
+		wantBaud:       460800,
+		wantFlow:       true,
 	},
 	{
-		name: "Sonoff ZBDongle-E",
-		vid:  silabsVID, pid: silabsPID,
+		name:           "Sonoff ZBDongle-E",
+		vid:            silabsVID,
+		pid:            silabsPID,
 		serialByIDName: "usb-ITead_Sonoff_ZBDongle-E-if00-port0",
-		macProduct:     "Sonoff ZBDongle-E",
-		macVendor:      "SONOFF",
-		macVendorDec:   0x10c4, macProductDec: 0xea60,
-		wantBaud: 460800, wantFlow: true,
+		wantBaud:       460800,
+		wantFlow:       true,
 	},
 	{
-		name: "Sonoff Dongle Plus MG24",
-		vid:  silabsVID, pid: silabsPID,
+		name:           "Sonoff Dongle Plus MG24",
+		vid:            silabsVID,
+		pid:            silabsPID,
 		serialByIDName: "usb-SONOFF_Dongle_Plus_MG24-if00-port0",
-		macProduct:     "SONOFF Dongle Plus MG24",
-		macVendor:      "SONOFF",
-		macVendorDec:   0x10c4, macProductDec: 0xea60,
-		wantBaud: 460800, wantFlow: true,
+		wantBaud:       460800,
+		wantFlow:       true,
 	},
 	{
-		name: "Nordic nRF52840 Thread Dongle",
-		vid:  "1915", pid: "528f",
+		name:           "Nordic nRF52840 Thread Dongle",
+		vid:            "1915",
+		pid:            "528f",
 		serialByIDName: "usb-Nordic_Semiconductor_nRF52840_Dongle-if00-port0",
-		macProduct:     "nRF52840 Dongle",
-		macVendor:      "Nordic Semiconductor",
-		macVendorDec:   0x1915, macProductDec: 0x528f,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 	{
-		name: "Nordic Custom Thread Coordinator",
-		vid:  "1915", pid: "cafe",
+		name:           "Nordic Custom Thread Coordinator",
+		vid:            "1915",
+		pid:            "cafe",
 		serialByIDName: "usb-Nordic_Semiconductor_OpenThread-if00-port0",
-		macProduct:     "OpenThread RCP",
-		macVendor:      "Nordic Semiconductor",
-		macVendorDec:   0x1915, macProductDec: 0xcafe,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 	{
-		name: "WCH CH340",
-		vid:  "1a86", pid: "7523",
+		name:           "WCH CH340",
+		vid:            "1a86",
+		pid:            "7523",
 		serialByIDName: "usb-1a86_USB_Serial-ch340-if00-port0",
-		macProduct:     "USB Serial",
-		macVendor:      "wch.cn",
-		macVendorDec:   0x1a86, macProductDec: 0x7523,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 	{
-		name: "WCH CH341",
-		vid:  "1a86", pid: "5523",
+		name:           "WCH CH341",
+		vid:            "1a86",
+		pid:            "5523",
 		serialByIDName: "usb-1a86_USB_Serial-ch341-if00-port0",
-		macProduct:     "USB Serial",
-		macVendor:      "wch.cn",
-		macVendorDec:   0x1a86, macProductDec: 0x5523,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 	{
-		name: "FTDI FT232",
-		vid:  "0403", pid: "6001",
+		name:           "FTDI FT232",
+		vid:            "0403",
+		pid:            "6001",
 		serialByIDName: "usb-FTDI_FT232R_USB_UART-if00-port0",
-		macProduct:     "FT232R USB UART",
-		macVendor:      "FTDI",
-		macVendorDec:   0x0403, macProductDec: 0x6001,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 	{
-		name: "Prolific PL2303",
-		vid:  "067b", pid: "2303",
+		name:           "Prolific PL2303",
+		vid:            "067b",
+		pid:            "2303",
 		serialByIDName: "usb-Prolific_Technology_Inc._USB-Serial_Controller-if00-port0",
-		macProduct:     "USB-Serial Controller",
-		macVendor:      "Prolific Technology Inc.",
-		macVendorDec:   0x067b, macProductDec: 0x2303,
-		wantBaud: 115200, wantFlow: false,
+		wantBaud:       115200,
+		wantFlow:       false,
 	},
 }
 
@@ -161,18 +147,6 @@ func setupSerialByIDLink(t *testing.T, linkName, ttyName string) string {
 		t.Fatal(err)
 	}
 	return resolved
-}
-
-func mockIORegBlock(vendorDec, productDec int, vendor, product string) string {
-	return fmt.Sprintf(`
-      +-o %s@01200000  <class IOUSBHostDevice, id 0x1000891d0>
-          {
-            "kUSBProductString" = %q
-            "USB Vendor Name" = %q
-            "idVendor" = %d
-            "idProduct" = %d
-          }
-`, product, product, vendor, vendorDec, productDec)
 }
 
 func assertDiscoverRadio(t *testing.T, wantPath string, wantBaud int, wantFlow bool) {
@@ -242,74 +216,69 @@ func TestDiscoverAllMainCoordinatorsViaSerialByID(t *testing.T) {
 	}
 }
 
-func TestDiscoverMainCoordinatorsViaMacSerialPort(t *testing.T) {
-	oldRun := runIoregCmd
-	defer func() { runIoregCmd = oldRun }()
+func setupExtraTTYNodes(t *testing.T, nodes []string, skipNode string) {
+	t.Helper()
+	if err := os.MkdirAll(devDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range nodes {
+		if node == skipNode {
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(devDir, node), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
 
+func TestDiscoverMainCoordinatorsViaTTY(t *testing.T) {
 	cases := []struct {
 		name     string
+		usbID    string
+		vid      string
+		pid      string
 		nodes    []string
 		wantNode string
 		wantBaud int
 		wantFlow bool
-		ioreg    func() ([]byte, error)
 	}{
 		{
-			name: "Sonoff MG24 cu port", nodes: []string{macSonoffSerial}, wantNode: macSonoffSerial,
-			wantBaud: 460800, wantFlow: true,
-			ioreg: func() ([]byte, error) {
-				return []byte(mockIORegBlock(0x10c4, 0xea60, "SONOFF", "SONOFF Dongle Plus MG24")), nil
-			},
+			name: "Sonoff MG24 ttyUSB", usbID: "1-1", vid: silabsVID, pid: silabsPID,
+			nodes: []string{linuxTTYUSB0}, wantNode: linuxTTYUSB0, wantBaud: 460800, wantFlow: true,
 		},
 		{
-			name:     "Sonoff MG24 prefers cu over tty",
-			nodes:    []string{macSonoffSerial, "tty.usbserial-11410"},
-			wantNode: macSonoffSerial,
-			wantBaud: 460800, wantFlow: true,
-			ioreg: func() ([]byte, error) {
-				return []byte(mockIORegBlock(0x10c4, 0xea60, "SONOFF", "SONOFF Dongle Plus MG24")), nil
-			},
+			name: "Sonoff MG24 prefers ttyUSB over ttyACM", usbID: "1-2", vid: silabsVID, pid: silabsPID,
+			nodes: []string{linuxTTYACM0, linuxTTYUSB0}, wantNode: linuxTTYUSB0, wantBaud: 460800, wantFlow: true,
 		},
 		{
-			name: "Nordic nRF52840 ttyACM fallback", nodes: []string{linuxTTYACM0}, wantNode: linuxTTYACM0,
-			wantBaud: 115200, wantFlow: false,
-			ioreg: func() ([]byte, error) {
-				return []byte(mockIORegBlock(0x1915, 0x528f, "Nordic Semiconductor", "nRF52840 Dongle")), nil
-			},
+			name: "Nordic nRF52840 ttyACM fallback", usbID: "2-1", vid: "1915", pid: "528f",
+			nodes: []string{linuxTTYACM0}, wantNode: linuxTTYACM0, wantBaud: 115200, wantFlow: false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runIoregCmd = tc.ioreg
 			root := t.TempDir()
 			withDiscoveryPaths(t, root)
-			if err := os.MkdirAll(devDir, 0o750); err != nil {
-				t.Fatal(err)
-			}
-			for _, node := range tc.nodes {
-				if err := os.WriteFile(filepath.Join(devDir, node), nil, 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
+			setupSysFSUSBDevice(t, tc.usbID, tc.vid, tc.pid, tc.wantNode)
+			setupExtraTTYNodes(t, tc.nodes, tc.wantNode)
 			assertDiscoverRadio(t, filepath.Join(devDir, tc.wantNode), tc.wantBaud, tc.wantFlow)
 		})
 	}
 }
 
-func TestDetectMacSerialSignatureAllMainCoordinators(t *testing.T) {
-	oldRun := runIoregCmd
-	defer func() { runIoregCmd = oldRun }()
-
+func TestDetectUSBSerialSignatureAllMainCoordinators(t *testing.T) {
 	for _, dev := range mainCoordinators {
 		t.Run(dev.name, func(t *testing.T) {
-			runIoregCmd = func() ([]byte, error) {
-				return []byte(mockIORegBlock(dev.macVendorDec, dev.macProductDec, dev.macVendor, dev.macProduct)), nil
-			}
+			root := t.TempDir()
+			withDiscoveryPaths(t, root)
+			usbID := strings.ReplaceAll(strings.ToLower(dev.name), " ", "-")
+			setupSysFSUSBDevice(t, usbID, dev.vid, dev.pid, linuxTTYUSB0)
+			setupSerialByIDLink(t, dev.serialByIDName, linuxTTYUSB0)
 
-			desc, vid, pid, found := DetectMacSerialSignature()
+			desc, vid, pid, found := DetectUSBSerialSignature(filepath.Join(root, "dev", linuxTTYUSB0))
 			if !found {
-				t.Fatal("expected device to be detected via ioreg mock")
+				t.Fatal("expected device to be detected via Linux discovery")
 			}
 			if vid != strings.ToLower(dev.vid) || pid != strings.ToLower(dev.pid) {
 				t.Errorf("vid:pid = %s:%s, want %s:%s", vid, pid, dev.vid, dev.pid)
@@ -326,13 +295,8 @@ func TestIsGenericSerialTTY(t *testing.T) {
 		name string
 		want bool
 	}{
-		{"ttyUSB0", true},
+		{linuxTTYUSB0, true},
 		{linuxTTYACM0, true},
-		{macSonoffSerial, true},
-		{"tty.usbserial-11410", true},
-		{"cu.usbmodem14101", true},
-		{"tty.usbmodem14101", true},
-		{"cu.Bluetooth-Incoming-Port", false},
 		{"random", false},
 	}
 	for _, tt := range tests {
@@ -344,11 +308,11 @@ func TestIsGenericSerialTTY(t *testing.T) {
 
 func TestPreferSerialDevice(t *testing.T) {
 	paths := []string{
-		"/dev/tty.usbserial-11410",
-		"/dev/" + macSonoffSerial,
+		"/dev/ttyACM0",
+		"/dev/ttyUSB0",
 	}
 	got := preferSerialDevice(paths)
-	want := "/dev/" + macSonoffSerial
+	want := "/dev/ttyUSB0"
 	if got != want {
 		t.Errorf("preferSerialDevice = %q, want %q", got, want)
 	}
@@ -381,7 +345,7 @@ func TestTargetSignatureCount(t *testing.T) {
 	}
 }
 
-func TestHexVIDPIDConversionMatchesMacIOReg(t *testing.T) {
+func TestHexVIDPIDConversion(t *testing.T) {
 	for key := range targetSignatures {
 		vidHex, pidHex, ok := strings.Cut(key, ":")
 		if !ok {

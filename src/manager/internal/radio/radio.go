@@ -250,8 +250,8 @@ func (b *Binding) probeAndUpdateStatus() {
 
 	detectedDevice := ""
 	if probeErr != nil {
-		if desc, vid, pid, ok := hardware.DetectMacSerialSignature(); ok {
-			detectedDevice = fmt.Sprintf("%s (VID: %s, PID: %s)", desc, vid, pid)
+		if desc, vid, pid, ok := hardware.DetectUSBSerialSignature(path); ok {
+			detectedDevice = hardware.FormatDetectedDevice(desc, vid, pid)
 		}
 	}
 

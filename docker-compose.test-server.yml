@@ -1,0 +1,58 @@
+# Test server stack: real Thread radio + Home Assistant (no mock mode).
+#
+# ThreadGate uses host networking for OTBR/mDNS; HA reaches it via host.docker.internal.
+# HA is published on host :8123; ThreadGate (host net) pairs back to http://127.0.0.1:8123.
+#
+#   docker compose -f docker-compose.test-server.yml up -d --build
+#   OTBR_URL=http://host.docker.internal:8081 HA_PAIR_URL=http://127.0.0.1:8123 \
+#     ./scripts/hass-dev.sh up-auto
+services:
+  homeassistant:
+    container_name: threadgate-ha
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./testdata/ha-config:/config
+    ports:
+      - "8123:8123"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8123/"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
+
+  threadgate:
+    container_name: threadgate
+    image: ghcr.io/mikeo7/threadgate:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    restart: unless-stopped
+    privileged: false
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    # Bind-mounting /dev alone does not grant access; allow USB serial coordinators.
+    device_cgroup_rules:
+      - "c 188:* rmw"
+      - "c 166:* rmw"
+    group_add:
+      - dialout
+    volumes:
+      - ./data:/data
+      - /dev:/dev
+      - /dev/serial:/dev/serial:ro
+      - /sys/bus/usb:/sys/bus/usb:ro
+      - /lib/modules:/lib/modules
+    environment:
+      - OTBR_RADIO_URL=
+      - OTBR_BAUDRATE=460800
+      - OTBR_PORT=8081
+      - OTBR_AUTO_DISCOVER=true
+      - OTBR_LOG_LEVEL=info

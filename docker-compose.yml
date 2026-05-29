@@ -16,6 +16,12 @@ services:
       - SYS_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
+    # Bind-mounting /dev alone does not grant access; allow USB serial coordinators.
+    device_cgroup_rules:
+      - "c 188:* rmw"
+      - "c 166:* rmw"
+    group_add:
+      - dialout
 
     volumes:
       - ./data:/data

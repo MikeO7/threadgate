@@ -9,8 +9,6 @@ import (
 
 var genericSerialTTYPrefixes = []string{
 	"ttyUSB", "ttyACM",
-	"cu.usbserial-", "tty.usbserial-",
-	"cu.usbmodem", "tty.usbmodem",
 }
 
 // isGenericSerialTTY reports whether a /dev node name is a USB serial coordinator endpoint.
@@ -23,12 +21,15 @@ func isGenericSerialTTY(name string) bool {
 	return false
 }
 
-// preferSerialDevice picks the best serial path when multiple endpoints exist.
-// On macOS, cu.* call-out ports are preferred over tty.*.
+// preferSerialDevice picks the best Linux serial path when multiple endpoints exist.
 func preferSerialDevice(paths []string) string {
 	for _, path := range paths {
-		base := filepath.Base(path)
-		if strings.HasPrefix(base, "cu.usbserial-") || strings.HasPrefix(base, "cu.usbmodem") {
+		if strings.HasPrefix(filepath.Base(path), "ttyUSB") {
+			return path
+		}
+	}
+	for _, path := range paths {
+		if strings.HasPrefix(filepath.Base(path), "ttyACM") {
 			return path
 		}
 	}
@@ -61,9 +62,19 @@ func discoverByTTY() (path string, baud int, flow bool, err error) {
 
 // recommendedTTYSettings resolves baud and flow control for a generic serial path.
 func recommendedTTYSettings(devicePath string) (baud int, flow bool) {
-	if baud, flow, ok := coordinatorSettingsFromMacIOReg(); ok {
+	if baud, flow, ok := coordinatorSettingsFromSysFS(devicePath); ok {
 		return baud, flow
 	}
 	name := strings.ToLower(filepath.Base(devicePath))
 	return getBaudrateFromHardwareName(name), getFlowControlFromHardwareName(name)
+}
+
+func coordinatorSettingsFromSysFS(devicePath string) (baud int, flow bool, ok bool) {
+	cleanPath := filepath.Clean(devicePath)
+	for _, dev := range scanSysFS() {
+		if filepath.Clean(dev.Path) == cleanPath {
+			return dev.Baudrate, dev.FlowControl, true
+		}
+	}
+	return 0, false, false
 }

@@ -96,7 +96,7 @@ func DiscoverRadio(mockMode bool) (string, int, bool, error) {
 		return path, baud, flow, nil
 	}
 
-	// 3. Fallback: scan for any active serial coordinator interfaces (Linux + macOS).
+	// 3. Fallback: scan for any active serial coordinator interfaces (Linux).
 	if path, baud, flow, err := discoverByTTY(); err == nil && path != "" {
 		return path, baud, flow, nil
 	}
@@ -551,8 +551,9 @@ func ProbeDevice(portPath string, baudrate int) (string, error) {
 	version, err := readProbeResponse(port)
 	if err != nil {
 		log.Printf("[Hardware] Probe error: failed to read valid response from %s: %v\n", portPath, err)
-		if desc, vid, pid, ok := DetectMacSerialSignature(); ok {
-			return "", fmt.Errorf("spinel probe timed out or returned invalid response. Detected physical device: %s (VID: %s, PID: %s). Your USB coordinator is running Zigbee or Multiprotocol firmware. Please flash it with Thread RCP firmware using the Silicon Labs Web Flasher: https://darkxst.github.io/silabs-firmware-builder/", desc, vid, pid)
+		if desc, vid, pid, ok := DetectUSBSerialSignature(portPath); ok {
+			detected := FormatDetectedDevice(desc, vid, pid)
+			return "", fmt.Errorf("spinel probe timed out or returned invalid response. Detected physical device: %s. Your USB coordinator is running Zigbee or Multiprotocol firmware. Please flash it with Thread RCP firmware using the Silicon Labs Web Flasher: https://darkxst.github.io/silabs-firmware-builder/", detected)
 		}
 		return "", err
 	}
