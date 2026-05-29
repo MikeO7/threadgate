@@ -98,13 +98,13 @@ func TestEnsureStatePersistence_MigrateNativeDirectory(t *testing.T) {
 	t.Cleanup(func() { varLibThreadPath = origPath })
 
 	// Create a native directory and seed files in it before ensuring persistence
-	if err := os.MkdirAll(tempVarLib, 0755); err != nil {
+	if err := os.MkdirAll(tempVarLib, 0o750); err != nil {
 		t.Fatalf("failed to create fake native dir: %v", err)
 	}
 
 	fakeFile := filepath.Join(tempVarLib, "thread-dataset-active")
 	fakeContent := []byte("active-dataset-key-data")
-	if err := os.WriteFile(fakeFile, fakeContent, 0644); err != nil {
+	if err := os.WriteFile(fakeFile, fakeContent, 0o600); err != nil {
 		t.Fatalf("failed to seed native file: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestEnsureStatePersistence_MigrateNativeDirectory(t *testing.T) {
 
 	// Verify file was migrated to /data/otbr/
 	migratedFile := filepath.Join(tempState, "otbr", "thread-dataset-active")
-	content, err := os.ReadFile(migratedFile)
+	content, err := os.ReadFile(migratedFile) //nolint:gosec // G304: path confined to test temp StateDir/otbr
 	if err != nil {
 		t.Fatalf("failed to read migrated file: %v", err)
 	}

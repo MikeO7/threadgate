@@ -32,8 +32,8 @@ func TestLoadDefaults(t *testing.T) {
 	if !cfg.AutoDiscover {
 		t.Errorf("Expected AutoDiscover default true, got %t", cfg.AutoDiscover)
 	}
-	if cfg.StateDir != "/data" {
-		t.Errorf("Expected StateDir default '/data', got %q", cfg.StateDir)
+	if cfg.StateDir != defaultStateDir() {
+		t.Errorf("Expected StateDir default %q, got %q", defaultStateDir(), cfg.StateDir)
 	}
 	if cfg.Runtime.IsMock() {
 		t.Errorf("Expected mock runtime default false, got mock")

@@ -256,15 +256,16 @@ func TestRunAgentOnceStartFailure(t *testing.T) {
 	cancel()
 }
 
-func TestSupervisorStartDBusFailure(t *testing.T) {
+func TestSupervisorStartWithoutDBus(t *testing.T) {
 	cfg := mockConfig(false)
 	cfg.RadioURL = "spinel+hdlc+uart:///dev/ttyUSB0"
 	cfg.Runtime = config.RuntimeModeHardware
 	s := newTestSupervisor(t, cfg, nil, fakeLauncher{binDir: "/definitely/missing"})
 	err := s.Start(context.Background())
-	if err == nil {
-		t.Fatal("expected dbus start failure")
+	if err != nil {
+		t.Fatalf("Start should proceed without dbus: %v", err)
 	}
+	s.Stop()
 }
 
 func TestStartAvahi(t *testing.T) {

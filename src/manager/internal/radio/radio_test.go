@@ -1,39 +1,46 @@
 package radio
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/MikeO7/threadgate/src/manager/internal/config"
+	"github.com/MikeO7/threadgate/src/manager/internal/hardware"
 	"github.com/MikeO7/threadgate/src/manager/internal/runtime"
 )
 
-func TestBindingMockRefresh(t *testing.T) {
+func TestBindingWaitsForHardwareWhenAutoDiscover(t *testing.T) {
+	root := t.TempDir()
+	restore := hardware.SetDiscoveryPathsForTest(
+		filepath.Join(root, "dev"),
+		filepath.Join(root, "dev", "serial", "by-id"),
+		filepath.Join(root, "sys", "bus", "usb", "devices"),
+	)
+	defer restore()
+
 	tracker := runtime.NewTracker()
 	cfg := &config.Config{
 		AutoDiscover: true,
 		Baudrate:     460800,
-		Runtime:      config.RuntimeModeMock,
+		Runtime:      config.RuntimeModeHardware,
 	}
 	b, err := NewBinding(cfg, tracker)
 	if err != nil {
 		t.Fatalf("NewBinding: %v", err)
 	}
-	if b.CurrentSpinelURL() != "spinel+hdlc+uart:///dev/ttyMOCK0?uart-baudrate=460800" {
-		t.Errorf("unexpected URL: %q", b.CurrentSpinelURL())
-	}
-	if err := b.Refresh(); err != nil {
-		t.Fatalf("Refresh: %v", err)
+	if b.CurrentSpinelURL() != "" {
+		t.Fatalf("expected empty spinel URL while waiting for hardware, got %q", b.CurrentSpinelURL())
 	}
 	status := tracker.GetStatus()
-	if status.RadioPath != "/dev/ttyMOCK0" {
-		t.Errorf("expected radio path /dev/ttyMOCK0, got %q", status.RadioPath)
+	if status.RadioPath != "" {
+		t.Errorf("expected empty radio path while waiting, got %q", status.RadioPath)
 	}
-	if status.ProbedVersion == "" {
-		t.Error("expected mock probed version after refresh")
+	if status.ProbeError == "" {
+		t.Error("expected probe error describing missing hardware")
 	}
 }
 
-func TestParseSpinelURL(t *testing.T) {
+func TestBindingMockRefresh(t *testing.T) {
 	tests := []struct {
 		url          string
 		defaultBaud  int

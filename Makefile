@@ -1,7 +1,7 @@
 .PHONY: all test lint build docker check clean tools fmt vuln actionlint tidy coverage coverage-check precommit fix deadcode \
 	help integration integration-up integration-up-auto integration-test integration-down integration-reset \
 	integration-fresh integration-fresh-auto integration-auto integration-logs \
-	hass-dev hass-up hass-test hass-down hass-reset
+	hass-dev hass-up hass-test hass-down hass-reset up down logs
 
 PRE_COMMIT := $(shell command -v pre-commit 2>/dev/null)
 ifeq ($(PRE_COMMIT),)
@@ -85,6 +85,19 @@ build:
 docker-build:
 	@echo "🐳 Building Docker image (local)..."
 	docker compose build
+
+up:
+	@mkdir -p data
+	docker compose up -d --build
+	@echo ""
+	@echo "ThreadGate dashboard: http://localhost:8081"
+	@echo "Plug in a Thread RCP dongle any time — auto-discovery will pick it up."
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f threadgate
 
 # --- Home Assistant + ThreadGate local integration (docker-compose.integration.yml) ---
 #

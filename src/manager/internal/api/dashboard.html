@@ -263,10 +263,19 @@
                     <div>
                         <div class="setup-card-header">
                             <span class="fw-tag silabs">Silicon Labs</span>
-                            {{if $isSilabs}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase;">Matches Device</span>{{end}}
+                            {{if $isSilabs}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase; margin-right: 0.5rem;">Matches Device</span>{{end}}
+                            <span id="silabs-latest-version" style="font-size: 0.65rem; color: var(--success); font-weight: 700; text-transform: uppercase; display: none;"></span>
                         </div>
                         <h4 class="setup-card-title" style="margin-top: 0.5rem;">Launch Web Flasher</h4>
-                        <p class="setup-card-desc">For SkyConnect, ZBT-1, and Sonoff ZBDongle-E. Flashes the recommended RCP firmware at 460800 baud directly from your browser.</p>
+                        {{if $isSilabs}}
+                            {{if contains .Status.DetectedDevice "sonoff"}}
+                            <p class="setup-card-desc" style="color: var(--text); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">👉 <strong>Next steps:</strong> Open the flasher, select <strong>Sonoff ZBDongle-E</strong>, choose <strong>OpenThread RCP (Thread)</strong>, and flash at <strong>460800 baud</strong>.</p>
+                            {{else}}
+                            <p class="setup-card-desc" style="color: var(--text); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">👉 <strong>Next steps:</strong> Open the flasher, select <strong>Home Assistant SkyConnect / Connect ZBT-1</strong>, and choose <strong>OpenThread RCP (Thread)</strong>.</p>
+                            {{end}}
+                        {{else}}
+                            <p class="setup-card-desc">For SkyConnect, ZBT-1, and Sonoff ZBDongle-E. Flashes the recommended RCP firmware at 460800 baud directly from your browser.</p>
+                        {{end}}
                     </div>
                     <div class="setup-card-action">
                         <span>Open Web Flasher</span>
@@ -276,17 +285,18 @@
 
                 <!-- Nordic Card -->
                 {{$isNordic := and .Status.DetectedDevice (or (contains .Status.DetectedDevice "nordic") (contains .Status.DetectedDevice "nrf52840"))}}
-                <a href="https://openthread.io/platforms/co-processor" target="_blank" rel="noopener" class="setup-card {{if $isNordic}}highlighted{{end}}">
+                <a href="https://github.com/ArthFink/nrf52840-OpenThread/releases" target="_blank" rel="noopener" class="setup-card {{if $isNordic}}highlighted{{end}}">
                     <div>
                         <div class="setup-card-header">
                             <span class="fw-tag nordic">Nordic Semi</span>
-                            {{if $isNordic}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase;">Matches Device</span>{{end}}
+                            {{if $isNordic}}<span style="font-size: 0.65rem; color: var(--warning); font-weight: 700; text-transform: uppercase; margin-right: 0.5rem;">Matches Device</span>{{end}}
+                            <span id="nordic-latest-version" style="font-size: 0.65rem; color: var(--success); font-weight: 700; text-transform: uppercase; display: none;"></span>
                         </div>
-                        <h4 class="setup-card-title" style="margin-top: 0.5rem;">Nordic nRF52840 Guide</h4>
-                        <p class="setup-card-desc">Flashes the standard Nordic ot-rcp build in bootloader mode (pulsing red LED) using the desktop nRF Connect Programmer.</p>
+                        <h4 class="setup-card-title" style="margin-top: 0.5rem;">nRF52840 Precompiled Firmware</h4>
+                        <p class="setup-card-desc">Download community-precompiled <strong>ot-rcp-USB.hex</strong> releases for the nRF52840 Dongle. Flash in bootloader mode (pulsing red LED) using the desktop nRF Connect Programmer.</p>
                     </div>
                     <div class="setup-card-action">
-                        <span>View Flashing Docs</span>
+                        <span>Download Precompiled HEX</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                     </div>
                 </a>
@@ -1646,6 +1656,56 @@ sensor:
 
     <script>
 {{.TopologyJS}}
+    </script>
+    <script>
+        (function() {
+            async function checkForFirmwareUpdates() {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                try {
+                    const nordicEl = document.getElementById("nordic-latest-version");
+                    if (nordicEl) {
+                        const res = await fetch("https://api.github.com/repos/ArthFink/nrf52840-OpenThread/releases/latest", { signal: controller.signal });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.tag_name) {
+                                nordicEl.textContent = `Latest: ${data.tag_name}`;
+                                nordicEl.style.display = "inline-block";
+                                nordicEl.style.marginLeft = "auto";
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log("[ThreadGate] Offline or failed to fetch Nordic firmware release:", e);
+                }
+
+                try {
+                    const silabsEl = document.getElementById("silabs-latest-version");
+                    if (silabsEl) {
+                        const res = await fetch("https://api.github.com/repos/darkxst/silabs-firmware-builder/releases/latest", { signal: controller.signal });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.tag_name) {
+                                silabsEl.textContent = `Latest: ${data.tag_name}`;
+                                silabsEl.style.display = "inline-block";
+                                silabsEl.style.marginLeft = "auto";
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log("[ThreadGate] Offline or failed to fetch Silabs firmware release:", e);
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", checkForFirmwareUpdates);
+            } else {
+                checkForFirmwareUpdates();
+            }
+        })();
     </script>
 </body>
 </html>

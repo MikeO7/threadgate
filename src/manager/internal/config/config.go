@@ -4,6 +4,8 @@ package config
 import (
 	"net"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -36,7 +38,7 @@ func Load() *Config {
 		RadioURL:            os.Getenv("OTBR_RADIO_URL"),
 		LogLevel:            getEnv("OTBR_LOG_LEVEL", "info"),
 		AutoDiscover:        getEnvBool("OTBR_AUTO_DISCOVER", true),
-		StateDir:            getEnv("OTBR_STATE_DIR", "/data"),
+		StateDir:            getEnv("OTBR_STATE_DIR", defaultStateDir()),
 		Runtime:             RuntimeModeFromMock(mockMode),
 		FlowControl:         getEnvBool("OTBR_FLOW_CONTROL", false),
 		ExplicitFlowControl: explicitFlowControl,
@@ -87,6 +89,16 @@ func detectBackboneInterface() string {
 		return iface.Name
 	}
 	return defaultBackboneInterface
+}
+
+func defaultStateDir() string {
+	if runtime.GOOS == "linux" {
+		return "/data"
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return filepath.Join(wd, "data")
+	}
+	return "./data"
 }
 
 func getEnv(key, defaultVal string) string {

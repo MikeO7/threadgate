@@ -43,7 +43,7 @@ func TestRadioBindingExplicitURL(t *testing.T) {
 		AutoDiscover:        false,
 		Baudrate:            460800,
 		ExplicitFlowControl: true,
-		FlowControl:         true,
+		FlowControl:         false,
 		Runtime:             config.RuntimeModeHardware,
 	}
 	radioBinding, err := radio.NewBinding(cfg, runtime.NewTracker())

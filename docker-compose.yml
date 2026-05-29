@@ -16,12 +16,12 @@ services:
       - SYS_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
-      # Mount your Thread RCP coordinator (adjust path if auto-discovery is disabled).
-      - /dev/ttyUSB0:/dev/ttyUSB0
 
     volumes:
       - ./data:/data
       - /dev:/dev
+      - /dev/serial:/dev/serial:ro
+      - /sys/bus/usb:/sys/bus/usb:ro
       - /lib/modules:/lib/modules
 
     environment:

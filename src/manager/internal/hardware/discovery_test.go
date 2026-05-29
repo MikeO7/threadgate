@@ -113,12 +113,15 @@ func TestDiscoverByTTY(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path, err := discoverByTTY()
+	path, baud, flow, err := discoverByTTY()
 	if err != nil {
 		t.Fatalf("discoverByTTY failed: %v", err)
 	}
 	if path != filepath.Join(devDir, "ttyACM0") {
 		t.Errorf("unexpected path: %q", path)
+	}
+	if baud != 0 || flow {
+		t.Errorf("expected generic tty fallback without mac signature, got baud=%d flow=%t", baud, flow)
 	}
 }
 
@@ -251,7 +254,7 @@ func TestDiscoverByTTYReadError(t *testing.T) {
 	if err := os.WriteFile(devDir, []byte("not-a-dir"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := discoverByTTY()
+	_, _, _, err := discoverByTTY()
 	if err == nil {
 		t.Fatal("expected read error for invalid dev dir")
 	}

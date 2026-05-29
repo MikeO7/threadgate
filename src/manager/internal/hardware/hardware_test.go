@@ -70,9 +70,12 @@ func TestGetBaudrateFromHardwareName(t *testing.T) {
 		{"usb-silabs-zbt-1-if00", 460800},
 		{"usb-sonoff_zigbee_3.0_usb_dongle_plus-if00", 460800},
 		{"usb-nordic_semiconductor_nrf52840-if00", 115200},
+		{"usb-nordic_semiconductor_openthread-if00", 115200},
 		{"usb-ftdi_ft232r-if00", 115200},
 		{"usb-ch340-if00", 115200},
 		{"usb-cp2102-if00", 460800},
+		{"usb-prolific_pl2303-if00", 115200},
+		{"usb-sonoff_zbdongle-e-if00", 460800},
 		{"usb-generic_adapter-if00", 0},
 		{"something_random", 0},
 	}
@@ -126,7 +129,7 @@ func TestDetectMacSerialSignature(t *testing.T) {
 `), nil
 	}
 
-	desc, vid, pid, found = DetectMacSerialSignature()
+	_, vid, pid, found = DetectMacSerialSignature()
 	if !found {
 		t.Fatal("expected Nordic device to be detected")
 	}

@@ -154,16 +154,32 @@ type Binding struct {
 }
 
 // NewBinding resolves the initial radio URL, probes serial hardware, and updates status.
+// When auto-discovery is enabled, startup continues without a dongle and keeps polling for hardware.
 func NewBinding(cfg *config.Config, status *runtime.Tracker) (*Binding, error) {
 	b := &Binding{
 		cfg:    configFrom(cfg),
 		status: status,
 	}
 	if err := b.resolve(false); err != nil {
+		if b.cfg.AutoDiscover {
+			log.Printf("[Radio] No radio detected at startup; dashboard will start and keep polling for USB hardware: %v\n", err)
+			b.markWaitingForHardware(err)
+			return b, nil
+		}
 		return nil, err
 	}
 	b.probeAndUpdateStatus()
 	return b, nil
+}
+
+func (b *Binding) markWaitingForHardware(err error) {
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+	if b.status != nil {
+		b.status.UpdateRadioHealth("", "", errStr, "")
+	}
 }
 
 // CurrentSpinelURL returns the active spinel URL for otbr-agent.
@@ -182,11 +198,23 @@ func (b *Binding) Refresh() error {
 	return nil
 }
 
+func (b *Binding) resolveExplicitURL() {
+	if p, ok := parseSpinelURL(b.cfg.RadioURL, b.cfg.Baudrate); ok {
+		if b.cfg.ExplicitFlowControl && !strings.Contains(b.cfg.RadioURL, "uart-flow-control") {
+			p.FlowControl = b.cfg.FlowControl
+		}
+		b.spinelURL = p.buildSpinelURL(b.cfg.ExplicitFlowControl)
+		b.devicePath = p.DevicePath
+		return
+	}
+	b.spinelURL = b.cfg.RadioURL
+	b.devicePath = b.cfg.RadioURL
+}
+
 func (b *Binding) resolve(forceDiscover bool) error {
 	if strings.Contains(b.cfg.RadioURL, "://") && !forceDiscover {
 		b.mu.Lock()
-		b.spinelURL = b.cfg.RadioURL
-		b.devicePath = b.cfg.RadioURL
+		b.resolveExplicitURL()
 		b.mu.Unlock()
 		return nil
 	}
@@ -267,8 +295,9 @@ func probe(cfg radioConfig, radioURL string) (probedVersion, devicePath string, 
 			"1. Flash your coordinator with RCP (Radio Co-Processor) Thread firmware.\n"+
 			"2. For Silicon Labs devices (SkyConnect, Connect ZBT-1, Sonoff ZBDongle-E), use the Silabs Web Flasher:\n"+
 			"   https://darkxst.github.io/silabs-firmware-builder/\n"+
-			"3. For Nordic Semiconductor devices, refer to Nordic nRF52840 Platform Docs:\n"+
-			"   https://openthread.io/platforms/co-processor\n"+
+			"3. For Nordic Semiconductor devices (nRF52840 Dongle), download the precompiled 'ot-rcp-USB.hex' directly from:\n"+
+			"   https://github.com/ArthFink/nrf52840-OpenThread/releases\n"+
+			"   (Tip: Press the physical RESET button to make the red LED pulse to enter bootloader mode, then use nRF Connect Programmer)\n"+
 			"================================================================================\n", devicePath, baudrate, probeErr)
 	} else {
 		log.Printf("[Radio] Pre-flight radio probe succeeded. RCP Version: %s\n", probedVersion)

@@ -96,9 +96,9 @@ func DiscoverRadio(mockMode bool) (string, int, bool, error) {
 		return path, baud, flow, nil
 	}
 
-	// 3. Fallback: scan for any active /dev/ttyUSB or /dev/ttyACM devices
-	if path, err := discoverByTTY(); err == nil && path != "" {
-		return path, 0, false, nil
+	// 3. Fallback: scan for any active serial coordinator interfaces (Linux + macOS).
+	if path, baud, flow, err := discoverByTTY(); err == nil && path != "" {
+		return path, baud, flow, nil
 	}
 
 	return "", 0, false, fmt.Errorf("no Thread USB radio dongles could be automatically detected")
@@ -144,38 +144,6 @@ func discoverBySysFS() (string, int, bool, error) {
 		return devices[0].Path, devices[0].Baudrate, devices[0].FlowControl, nil
 	}
 	return "", 0, false, nil
-}
-
-// discoverByTTY falls back to finding any active TTY coordinator interfaces.
-func discoverByTTY() (string, error) {
-	log.Println("[Hardware] No exact USB profile matched. Scanning for any active serial endpoints...")
-	devFiles, err := os.ReadDir(devDir)
-	if err != nil {
-		return "", err
-	}
-
-	for _, f := range devFiles {
-		name := f.Name()
-		if strings.HasPrefix(name, "ttyUSB") || strings.HasPrefix(name, "ttyACM") {
-			path := filepath.Join(devDir, name)
-			log.Printf("[Hardware] Auto-discovered generic serial coordinator interface: %s\n", path)
-			return path, nil
-		}
-	}
-	return "", nil
-}
-
-// isKnownHardwareName performs signature checks on file names for typical Thread modules.
-func isKnownHardwareName(name string) bool {
-	return strings.Contains(name, "zbt") ||
-		strings.Contains(name, "skyconnect") ||
-		strings.Contains(name, "sonoff") ||
-		strings.Contains(name, "openthread") ||
-		strings.Contains(name, "nrf52840") ||
-		strings.Contains(name, "usb-serial") ||
-		strings.Contains(name, "cp210") ||
-		strings.Contains(name, "ch34") ||
-		strings.Contains(name, "ftdi")
 }
 
 // scanSysFS audits /sys/bus/usb/devices for signature-matched hardware.
@@ -268,34 +236,6 @@ func findTTYNode(usbDevicePath string) string {
 	}
 
 	return ttyPath
-}
-
-// getBaudrateFromHardwareName maps typical smart home USB dongle names to their recommended baud rates.
-func getBaudrateFromHardwareName(name string) int {
-	name = strings.ToLower(name)
-	switch {
-	case strings.Contains(name, "zbt") ||
-		strings.Contains(name, "skyconnect") ||
-		strings.Contains(name, "sonoff") ||
-		strings.Contains(name, "cp210"):
-		return 460800
-	case strings.Contains(name, "nrf52840") ||
-		strings.Contains(name, "ch34") ||
-		strings.Contains(name, "ftdi") ||
-		strings.Contains(name, "pl2303"):
-		return 115200
-	default:
-		return 0
-	}
-}
-
-// getFlowControlFromHardwareName maps typical smart home USB dongle names to their recommended hardware flow control setting.
-func getFlowControlFromHardwareName(name string) bool {
-	name = strings.ToLower(name)
-	// ZBT-1, SkyConnect, and other CP2102-based Silicon Labs coordinators recommend flow control
-	return strings.Contains(name, "zbt") ||
-		strings.Contains(name, "skyconnect") ||
-		strings.Contains(name, "silabs")
 }
 
 //
@@ -645,80 +585,4 @@ func readProbeResponse(port serial.Port) (string, error) {
 	}
 
 	return "", fmt.Errorf("spinel probe timed out or returned invalid response (detected CPC/MultiPAN or incorrect firmware)")
-}
-
-// runIoregCmd executes the ioreg command on macOS to fetch USB device trees. (Overridable in tests).
-var runIoregCmd = func() ([]byte, error) {
-	cmd := exec.Command("ioreg", "-p", "IOUSB", "-l")
-	return cmd.Output()
-}
-
-// DetectMacSerialSignature scans macOS USB devices to see if a known coordinator is plugged in.
-func DetectMacSerialSignature() (desc, vid, pid string, found bool) {
-	out, err := runIoregCmd()
-	if err != nil {
-		return "", "", "", false
-	}
-
-	lines := strings.Split(string(out), "\n")
-	var currentProduct, currentVendor, currentVID, currentPID string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "\"USB Product Name\"") || strings.Contains(line, "\"kUSBProductString\"") {
-			parts := strings.Split(line, "=")
-			if len(parts) > 1 {
-				currentProduct = strings.Trim(parts[1], " \"")
-			}
-		} else if strings.Contains(line, "\"USB Vendor Name\"") || strings.Contains(line, "\"kUSBVendorString\"") {
-			parts := strings.Split(line, "=")
-			if len(parts) > 1 {
-				currentVendor = strings.Trim(parts[1], " \"")
-			}
-		} else if strings.Contains(line, "\"idVendor\"") {
-			parts := strings.Split(line, "=")
-			if len(parts) > 1 {
-				currentVID = strings.TrimSpace(parts[1])
-			}
-		} else if strings.Contains(line, "\"idProduct\"") {
-			parts := strings.Split(line, "=")
-			if len(parts) > 1 {
-				currentPID = strings.TrimSpace(parts[1])
-			}
-			// When we hit idProduct, we have finished a device block. Let's check it!
-			if currentVID != "" && currentPID != "" {
-				// Convert decimal ID to hex for matching targetSignatures
-				var vDec, pDec int64
-				fmt.Sscanf(currentVID, "%d", &vDec)
-				fmt.Sscanf(currentPID, "%d", &pDec)
-				hexKey := fmt.Sprintf("%04x:%04x", vDec, pDec)
-				if sig, exists := targetSignatures[hexKey]; exists {
-					desc = sig.Desc
-					if currentProduct != "" {
-						desc = fmt.Sprintf("%s (%s)", currentProduct, sig.Desc)
-					}
-					return desc, fmt.Sprintf("%04x", vDec), fmt.Sprintf("%04x", pDec), true
-				}
-
-				lowerProd := strings.ToLower(currentProduct)
-				lowerVendor := strings.ToLower(currentVendor)
-
-				if strings.Contains(lowerProd, "sonoff") || strings.Contains(lowerProd, "dongle") ||
-					strings.Contains(lowerProd, "skyconnect") || strings.Contains(lowerProd, "zbt") ||
-					strings.Contains(lowerProd, "cp210") || strings.Contains(lowerProd, "ch34") ||
-					strings.Contains(lowerProd, "ftdi") || strings.Contains(lowerProd, "pl2303") ||
-					strings.Contains(lowerProd, "nordic") || strings.Contains(lowerProd, "nrf52840") ||
-					strings.Contains(lowerVendor, "sonoff") || strings.Contains(lowerVendor, "silabs") ||
-					strings.Contains(lowerVendor, "nordic") {
-
-					desc = currentProduct
-					if currentVendor != "" && !strings.Contains(lowerProd, strings.ToLower(currentVendor)) {
-						desc = fmt.Sprintf("%s %s", currentVendor, currentProduct)
-					}
-					return desc, fmt.Sprintf("%04x", vDec), fmt.Sprintf("%04x", pDec), true
-				}
-			}
-		}
-	}
-	return "", "", "", false
 }
