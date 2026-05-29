@@ -233,7 +233,7 @@ func probe(cfg radioConfig, radioURL string) (probedVersion, devicePath string, 
 			log.Printf("[Radio] Mock mode active: simulating hardware probe error due to THREADGATE_MOCK_PROBE_ERROR: %v\n", mockErr)
 			return "", devicePath, mockErr
 		}
-		probedVersion = "ThreadGateMock/1.0.0; SIMULATION; May 28 2026"
+		probedVersion = "ThreadGateMock/1.0.0; SIMULATION; May 29 2026"
 		log.Printf("[Radio] Mock mode active: skipping hardware probe. Probed version set to simulated: %s\n", probedVersion)
 		return probedVersion, devicePath, nil
 	}
