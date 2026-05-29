@@ -48,8 +48,8 @@ func TestParseChildPipeLine(t *testing.T) {
 		t.Fatal("expected false on bad length line")
 	}
 
-	badIdLine := "| bad | 0x1234 | 1 | 1 | 2 | 1 | 1 | 1122334455667788 |"
-	_, ok = parseChildPipeLine(badIdLine)
+	badIDLine := "| bad | 0x1234 | 1 | 1 | 2 | 1 | 1 | 1122334455667788 |"
+	_, ok = parseChildPipeLine(badIDLine)
 	if ok {
 		t.Fatal("expected false on bad ID line")
 	}
