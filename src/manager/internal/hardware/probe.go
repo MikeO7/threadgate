@@ -45,6 +45,13 @@ func HdlcByteNeedsEscape(b byte) bool {
 	return b == kFlagSequence || b == kEscapeSequence || b == kFlagXOn || b == kFlagXOff || b == kFlagSpecial
 }
 
+func appendEscaped(out []byte, b byte) []byte {
+	if HdlcByteNeedsEscape(b) {
+		return append(out, kEscapeSequence, b^0x20)
+	}
+	return append(out, b)
+}
+
 // EncodeHdlc wraps a raw Spinel payload into an HDLC-lite framed packet.
 func EncodeHdlc(payload []byte) []byte {
 	var out []byte
@@ -53,34 +60,14 @@ func EncodeHdlc(payload []byte) []byte {
 	fcs := uint16(0xffff)
 	for _, b := range payload {
 		fcs = UpdateFcs(fcs, b)
-		if HdlcByteNeedsEscape(b) {
-			out = append(out, kEscapeSequence, b^0x20)
-		} else {
-			out = append(out, b)
-		}
+		out = appendEscaped(out, b)
 	}
 
-	// Finalize FCS
 	fcs ^= 0xffff
-	fcsLow := byte(fcs & 0xff)
-	fcsHigh := byte(fcs >> 8)
+	out = appendEscaped(out, byte(fcs&0xff))
+	out = appendEscaped(out, byte(fcs>>8))
 
-	// Encode FCS low byte
-	if HdlcByteNeedsEscape(fcsLow) {
-		out = append(out, kEscapeSequence, fcsLow^0x20)
-	} else {
-		out = append(out, fcsLow)
-	}
-
-	// Encode FCS high byte
-	if HdlcByteNeedsEscape(fcsHigh) {
-		out = append(out, kEscapeSequence, fcsHigh^0x20)
-	} else {
-		out = append(out, fcsHigh)
-	}
-
-	out = append(out, kFlagSequence)
-	return out
+	return append(out, kFlagSequence)
 }
 
 func findHdlcStart(data []byte) int {
