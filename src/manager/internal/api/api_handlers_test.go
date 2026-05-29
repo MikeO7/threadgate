@@ -236,3 +236,48 @@ func TestRunOtCtlWithContextFailure(t *testing.T) {
 		t.Fatal("expected ot-ctl failure")
 	}
 }
+
+func TestHandleChannelScan(t *testing.T) {
+	mockOutput := `| Ch | RSSI |
++----+------+
+| 11 |  -82 |
+| 15 |  -92 |
+Done`
+
+	server := NewServerWithOtCtl(8081, FuncOtCtl(func(_ context.Context, args ...string) (string, error) {
+		key := otctl.Command{Args: args}.Key()
+		if key == otctl.ScanEnergy.Key() {
+			return mockOutput, nil
+		}
+		return "", fmt.Errorf("unknown command: %s", key)
+	}), false)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/node/channels/scan", nil)
+	rr := httptest.NewRecorder()
+	server.handleChannelScan(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rr.Code)
+	}
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Fatalf("expected application/json, got %q", contentType)
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, `"channel":11`) || !strings.Contains(body, `"rssi":-82`) {
+		t.Errorf("unexpected body: %s", body)
+	}
+}
+
+func TestHandleChannelScanMethodNotAllowed(t *testing.T) {
+	server := NewServerWithOtCtl(8081, NewMockOtCtl(), false)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/node/channels/scan", nil)
+	rr := httptest.NewRecorder()
+	server.handleChannelScan(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405 Method Not Allowed, got %d", rr.Code)
+	}
+}

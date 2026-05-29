@@ -24,7 +24,11 @@ func (s *Server) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("threadgate-backup-%s.json", time.Now().UTC().Format("20060102-150405"))
+	chanSuffix := ""
+	if backup.Channel != "" {
+		chanSuffix = "-ch" + backup.Channel
+	}
+	filename := fmt.Sprintf("threadgate-backup%s-%s.json", chanSuffix, time.Now().UTC().Format("20060102-150405"))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 

@@ -1,4 +1,9 @@
+<p align="center">
+  <img src="src/manager/internal/api/logo.svg" alt="ThreadGate Logo" width="120" height="120" />
+</p>
+
 # ThreadGate
+
 
 > [!WARNING]
 > **Under Heavy Development**: This project is undergoing rapid, active development and is not yet suitable for production environments. System stability, configuration options, and APIs are subject to frequent and major breaking changes without notice. Use at your own discretion.
@@ -12,7 +17,7 @@ ThreadGate is a modern, self-healing OpenThread Border Router (OTBR) container o
 - **Golang Supervisor Engine**: Acts as PID 1 to gracefully manage child processes (`dbus-daemon`, `avahi-daemon`, `otbr-agent`) and route POSIX OS signals perfectly.
 - **Hardware Auto-Discovery**: USB signature scanner automatically detects common smart home coordinators (such as Home Assistant Connect ZBT-1, Sonoff, and Nordic dongles) and binds the exact spinel protocol URLs dynamically.
 - **Automatic Self-Healing**: Actively monitors C++ sub-processes. If the `otbr-agent` encounters a critical fault, the manager cleanly recovers and restarts it.
-- **Modern REST API & high-Fidelity UI**: Exposes the Home Assistant-expected REST API (Port `8081`) while hosting a premium, responsive HSL dark-themed system diagnostics dashboard.
+- **Modern REST API & high-Fidelity UI**: Exposes the Home Assistant-expected REST API (Port `8081`) while hosting a premium, responsive HSL dark-themed system diagnostics dashboard. Automatically syncs with Home Assistant to resolve friendly, human-readable names for Thread nodes!
 - **Production-Ready & Minimal**: Built using a multi-stage Dockerfile to eliminate build toolchains from the final runtime image.
 
 ---
@@ -60,6 +65,8 @@ services:
       - OTBR_BAUDRATE=460800        # Optimized default baudrate for Silicon Labs chips
       - OTBR_PORT=8081              # REST API and Dashboard port
       - OTBR_AUTO_DISCOVER=true
+      - OTBR_HASS_URL=              # Optional: e.g., http://192.168.1.100:8123 (to fetch friendly node names)
+      - OTBR_HASS_TOKEN=            # Optional: Long-Lived Access Token from Home Assistant
 ```
 
 Simply run:
@@ -68,6 +75,16 @@ docker compose up -d
 ```
 
 Access the diagnostic dashboard by visiting `http://localhost:8081` in your browser!
+
+### 3. Home Assistant Device Name Synchronization (Optional)
+To display user-friendly device names (like `"Living Room Motion Sensor"` or `"Kitchen Thermostat"`) in the system topology map instead of raw hex values (like `0xc001`), ThreadGate can query your Home Assistant device registry.
+
+1. Go to your **Home Assistant Profile** (click your username in the bottom left).
+2. Scroll to the bottom and click **Create Token** under *Long-Lived Access Tokens*.
+3. Add `OTBR_HASS_URL` and `OTBR_HASS_TOKEN` to your `environment` block in the compose file as shown above.
+
+> [!NOTE]
+> **Try it in Mock Mode**: If you want to test or preview friendly name rendering in the UI without real hardware or Home Assistant credentials, you can set `OTBR_MOCK_MODE=true` in your environment. ThreadGate will automatically populate a set of simulated devices with realistic friendly names (such as `"Living Room Multi-Sensor"`, `"Kitchen Smart Plug"`, and `"Office Desk Lamp"`) so you can explore the fully-mapped topology!
 
 ---
 

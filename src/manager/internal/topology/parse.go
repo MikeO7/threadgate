@@ -277,3 +277,121 @@ func parseCounters(output string) []Counter {
 	}
 	return list
 }
+
+func parseLeaderData(output string) LeaderData {
+	var ld LeaderData
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "Done" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(parts[0]))
+		valStr := strings.TrimSpace(parts[1])
+
+		switch key {
+		case "partition id", "partitionid":
+			if u, err := strconv.ParseUint(valStr, 10, 32); err == nil {
+				ld.PartitionID = uint32(u)
+			} else if strings.HasPrefix(strings.ToLower(valStr), "0x") {
+				if u, err := strconv.ParseUint(valStr[2:], 16, 32); err == nil {
+					ld.PartitionID = uint32(u)
+				}
+			}
+		case "weighting":
+			ld.Weighting, _ = strconv.Atoi(valStr)
+		case "network data version", "networkdataversion", "network data ver":
+			ld.NetworkDataVer, _ = strconv.Atoi(valStr)
+		case "stable network data version", "stablenetworkdataversion", "stable network data ver":
+			ld.StableNetworkData, _ = strconv.Atoi(valStr)
+		case "leader router id", "leaderrouterid":
+			ld.LeaderRouterID, _ = strconv.Atoi(valStr)
+		}
+	}
+	return ld
+}
+
+func parsePrefixTable(output string) []PrefixEntry {
+	var prefixes []PrefixEntry
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "Done" || strings.ToLower(line) == "prefixes:" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
+			continue
+		}
+		prefix := parts[0]
+		if !strings.Contains(prefix, "/") || !strings.Contains(prefix, ":") {
+			continue
+		}
+
+		var flags []string
+		preference := "medium"
+		stable := false
+
+		for _, part := range parts[1:] {
+			partLower := strings.ToLower(part)
+			switch partLower {
+			case "high":
+				preference = "high"
+			case "med", "medium":
+				preference = "medium"
+			case "low":
+				preference = "low"
+			case "stable":
+				stable = true
+			default:
+				if len(part) <= 6 && !strings.Contains(part, ":") {
+					for _, char := range partLower {
+						switch char {
+						case 'p':
+							flags = append(flags, "preferred")
+						case 'a':
+							flags = append(flags, "slaac")
+						case 'd':
+							flags = append(flags, "dhcp")
+						case 'c':
+							flags = append(flags, "config")
+						case 'r':
+							flags = append(flags, "route")
+						case 'o':
+							flags = append(flags, "on-mesh")
+						case 's':
+							flags = append(flags, "stable")
+							stable = true
+						}
+					}
+				} else {
+					flags = append(flags, part)
+				}
+			}
+		}
+
+		flags = uniqueStrings(flags)
+
+		prefixes = append(prefixes, PrefixEntry{
+			Prefix:     prefix,
+			Flags:      flags,
+			Stable:     stable,
+			Preference: preference,
+		})
+	}
+	return prefixes
+}
+
+func uniqueStrings(slice []string) []string {
+	keys := make(map[string]bool)
+	var list []string
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}

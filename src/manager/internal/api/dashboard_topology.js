@@ -4,6 +4,16 @@
             var ctx = canvas.getContext("2d");
             var tooltip = document.getElementById("tooltip");
 
+            var isCanvasActive = true;
+            window.addEventListener("tabChanged", function(e) {
+                isCanvasActive = (e.detail.activeTab === "map");
+            });
+            document.addEventListener("visibilitychange", function() {
+                var activeTabEl = document.querySelector(".tab-btn.active");
+                var activeTabId = activeTabEl ? activeTabEl.id : "";
+                isCanvasActive = (document.visibilityState === "visible" && (activeTabId === "btn-map" || !activeTabId));
+            });
+
             // ---- Theme-aware palette (canvas can't read CSS vars directly) ----
             function readVar(name, fallback) {
                 var v = getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -76,6 +86,15 @@
             function normalizeRloc(value) {
                 value = (value || "").toLowerCase();
                 return value.indexOf("0x") === 0 ? value.slice(2) : value;
+            }
+
+            function normalizeMac(mac) {
+                return (mac || "").toLowerCase().replace(/[:-]/g, "").trim();
+            }
+
+            function getFriendlyName(mac) {
+                if (!boot.deviceNames) return "";
+                return boot.deviceNames[normalizeMac(mac)] || "";
             }
 
             // High-performance key-value object map lookup for O(1) node discovery
@@ -281,6 +300,7 @@
                 y: 0,
                 label: "Border Router",
                 mac: boot.extAddress || "",
+                friendlyName: getFriendlyName(boot.extAddress || ""),
                 rloc: boot.rloc16 || "",
                 isCenter: true,
                 baseRadius: 18,
@@ -524,6 +544,7 @@
                     }
                     node.label = n.Rloc16.indexOf("0x") === 0 ? n.Rloc16 : "0x" + n.Rloc16;
                     node.mac = n.ExtAddr;
+                    node.friendlyName = getFriendlyName(n.ExtAddr);
                     node.rloc = node.label;
                     node.lqi = n.LQI;
                     node.pathCost = n.PathCost || 0;
@@ -708,6 +729,7 @@
                     y: 0,
                     label: rlocLabel,
                     mac: n.ExtAddr,
+                    friendlyName: getFriendlyName(n.ExtAddr),
                     rloc: rlocLabel,
                     lqi: n.LQI,
                     pathCost: n.PathCost || 0,
@@ -854,6 +876,11 @@
             });
 
             function draw() {
+                if (!isCanvasActive) {
+                    requestAnimationFrame(draw);
+                    return;
+                }
+
                 var rect = canvas.getBoundingClientRect();
                 var cx = rect.width / 2;
                 var cy = rect.height / 2;
@@ -944,7 +971,8 @@
                     if (p.progress >= 1) {
                         var direction = p.inbound ? "Received" : "Transmitted";
                         var byteCount = Math.floor(Math.random() * 128) + 16;
-                        addLog("TRAFFIC", `${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: var(--violet);">${p.target.rloc}</span>`, "var(--cyan)");
+                        var nodeDisplayName = p.target.friendlyName ? `${p.target.friendlyName} (${p.target.rloc})` : p.target.rloc;
+                        addLog("TRAFFIC", `${direction} ${byteCount} bytes via ${p.hopCount} hop(s) ${p.inbound ? 'from' : 'to'} node: <span style="color: var(--violet);">${nodeDisplayName}</span>`, "var(--cyan)");
                         particles.splice(i, 1);
                         continue;
                     }
@@ -1018,7 +1046,12 @@
                         ctx.font = "600 9px 'JetBrains Mono', monospace";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "top";
-                        var labelText = node.isCenter ? "OTBR (GATEWAY)" : "NODE: " + node.label;
+                        var labelText;
+                        if (node.isCenter) {
+                            labelText = node.friendlyName ? node.friendlyName + " (Gateway)" : "OTBR (GATEWAY)";
+                        } else {
+                            labelText = node.friendlyName ? node.friendlyName : "NODE: " + node.label;
+                        }
 
                         var textWidth = ctx.measureText(labelText).width;
                         var boxW = textWidth + 12;
@@ -1051,23 +1084,38 @@
                     tooltip.style.top = (rect.top + cy + hoveredNode.y - 45) + "px";
 
                     if (hoveredNode.isCenter) {
+                        var title = hoveredNode.friendlyName ? hoveredNode.friendlyName : "Thread Border Router (Gateway)";
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent);">Thread Border Router (Gateway)</strong><br/>
-                            <span style="color:var(--text-muted);">Extended MAC:</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
-                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:var(--violet);">0x${hoveredNode.rloc}</span>
+                            <strong style="color:var(--accent);">${title}</strong><br/>
+                            <span style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:2px;margin-bottom:6px;line-height:1.3;">This is your internet-to-Thread gateway translator. It connects your Thread smart devices to your home network.</span>
+                            <span style="color:var(--text-muted);">Hardware ID (MAC):</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
+                            <span style="color:var(--text-muted);">Network Address (RLOC):</span> <span style="font-family:var(--font-mono); color:var(--violet);">0x${hoveredNode.rloc}</span>
                         `;
                     } else {
-                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success)'>EXCELLENT</span>" :
-                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning)'>FAIR</span>" :
-                                     "<span style='color:var(--danger)'>POOR</span>";
+                        var title = hoveredNode.friendlyName ? hoveredNode.friendlyName : "Neighbor Device";
+                        var roleLabel = hoveredNode.role ? hoveredNode.role.toUpperCase() : "DEVICE";
+                        var roleDesc = "";
+                        if (hoveredNode.role === "leader") {
+                            roleDesc = "Coordinates and manages the entire Thread network.";
+                        } else if (hoveredNode.role === "router") {
+                            roleDesc = "Forwards traffic, acts as a repeater, and extends the wireless range.";
+                        } else if (hoveredNode.role === "child") {
+                            roleDesc = "An endpoint device (like a smart plug) connected to a parent router.";
+                        } else if (hoveredNode.role === "sleepy") {
+                            roleDesc = "A battery-powered sensor that sleeps most of the time to save power.";
+                        }
+                        
+                        var lqiLabel = hoveredNode.lqi === 3 ? "<span style='color:var(--success)'>EXCELLENT (perfect connection)</span>" :
+                                     hoveredNode.lqi === 2 ? "<span style='color:var(--warning)'>FAIR (stable connection)</span>" :
+                                     "<span style='color:var(--danger)'>POOR (frequent packet drops)</span>";
                         tooltip.innerHTML = `
-                            <strong style="color:var(--accent);">Neighbor Node (Router)</strong><br/>
-                            <span style="color:var(--text-muted);">Extended MAC:</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
-                            <span style="color:var(--text-muted);">RLOC16:</span> <span style="font-family:var(--font-mono); color:var(--violet);">${hoveredNode.rloc}</span><br/>
-                            <span style="color:var(--text-muted);">Route Cost:</span> <span style="font-family:var(--font-mono);">${hoveredNode.pathCost || 0} hop(s) from OTBR</span><br/>
-                            ${hoveredNode.nextHopRloc ? `<span style="color:var(--text-muted);">Next Hop:</span> <span style="font-family:var(--font-mono);">${hoveredNode.nextHopRloc}</span><br/>` : ""}
-                            ${hoveredNode.role ? `<span style="color:var(--text-muted);">Role:</span> <span style="font-family:var(--font-mono);">${hoveredNode.role}</span><br/>` : ""}
-                            <span style="color:var(--text-muted);">Link Strength:</span> ${lqiLabel} (LQI ${hoveredNode.lqi})
+                            <strong style="color:var(--accent);">${title}</strong> (${roleLabel})<br/>
+                            ${roleDesc ? `<span style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:2px;margin-bottom:6px;line-height:1.3;">${roleDesc}</span>` : ""}
+                            <span style="color:var(--text-muted);">Hardware ID (MAC):</span> <span style="font-family:var(--font-mono);">${hoveredNode.mac}</span><br/>
+                            <span style="color:var(--text-muted);">Network Address (RLOC):</span> <span style="font-family:var(--font-mono); color:var(--violet);">${hoveredNode.rloc}</span><br/>
+                            <span style="color:var(--text-muted);">Distance (Hops):</span> <span style="font-family:var(--font-mono);">${hoveredNode.pathCost || 0} hop(s) from gateway</span><br/>
+                            ${hoveredNode.nextHopRloc ? `<span style="color:var(--text-muted);">Sends traffic via:</span> <span style="font-family:var(--font-mono);">0x${hoveredNode.nextHopRloc}</span><br/>` : ""}
+                            <span style="color:var(--text-muted);">Signal Strength:</span> ${lqiLabel}
                         `;
                     }
                 } else {

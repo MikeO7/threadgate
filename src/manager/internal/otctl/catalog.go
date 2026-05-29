@@ -28,6 +28,8 @@ const (
 	LabelChildTable    = "child table"
 	LabelRouterTable   = "router table"
 	LabelCounters      = "counters"
+	LabelLeaderData    = "leaderdata"
+	LabelPrefixTable   = "prefix"
 )
 
 const (
@@ -57,6 +59,11 @@ var (
 	DatasetCommitActive  = Command{Args: []string{subArgDataset, "commit", subArgActive}}
 	DatasetSetPending    = Command{Args: []string{subArgDataset, "set", subArgPending}}
 	DatasetCommitPending = Command{Args: []string{subArgDataset, "commit", subArgPending}}
+
+	LeaderData  = Command{Label: LabelLeaderData, Args: []string{"leaderdata"}}
+	PrefixTable = Command{Label: LabelPrefixTable, Args: []string{"prefix"}}
+
+	ScanEnergy = Command{Label: "scan energy", Args: []string{"scan", "energy", "150"}}
 )
 
 // SnapshotCommands is the full parallel collection used by topology.Build.
@@ -73,4 +80,6 @@ var SnapshotCommands = []Command{
 	ChildTable,
 	RouterTable,
 	Counters,
+	LeaderData,
+	PrefixTable,
 }

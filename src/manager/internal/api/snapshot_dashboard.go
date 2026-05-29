@@ -13,6 +13,7 @@ type DashboardView struct {
 	topology.Snapshot
 	Port         int
 	MockMode     bool
+	HassEnabled  bool
 	CSS          template.CSS
 	TopologyJS   template.JS
 	TopologyJSON template.JS
@@ -20,12 +21,13 @@ type DashboardView struct {
 }
 
 // DashboardView builds the SSR template model for the dashboard.
-func NewDashboardView(snap topology.Snapshot, port int, mockMode bool, status runtime.Status) DashboardView {
+func NewDashboardView(snap topology.Snapshot, port int, mockMode bool, status runtime.Status, hassEnabled bool) DashboardView {
 	topologyJSON, _ := MarshalTopologyJSON(snap)
 	return DashboardView{
 		Snapshot:     snap,
 		Port:         port,
 		MockMode:     mockMode,
+		HassEnabled:  hassEnabled,
 		CSS:          template.CSS(dashboardCSS),       //nolint:gosec // G203: embedded static stylesheet
 		TopologyJS:   template.JS(dashboardTopologyJS), //nolint:gosec // G203: embedded static script
 		TopologyJSON: topologyJSON,

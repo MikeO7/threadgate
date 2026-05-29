@@ -4,6 +4,7 @@ package thread
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,4 +120,109 @@ func splitLines(s string) []string {
 // SplitLines splits ot-ctl multiline output into non-empty lines.
 func SplitLines(s string) []string {
 	return splitLines(s)
+}
+
+// ScanChannels executes an energy scan via ot-ctl and parses/analyzes results.
+func (c *Client) ScanChannels(ctx context.Context) ([]ChannelScanResult, error) {
+	output, err := c.runner.Run(ctx, otctl.ScanEnergy.Args...)
+	if err != nil {
+		return nil, fmt.Errorf("scan energy command failed: %w", err)
+	}
+
+	return ParseScanEnergyOutput(output)
+}
+
+// ParseScanEnergyOutput parses raw scan energy output into structured ChannelScanResult.
+func ParseScanEnergyOutput(output string) ([]ChannelScanResult, error) {
+	lines := strings.Split(output, "\n")
+	var results []ChannelScanResult
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		// Skip header line or separator line
+		if strings.Contains(line, "Ch") || strings.Contains(line, "RSSI") || strings.Contains(line, "+") {
+			continue
+		}
+
+		parts := strings.Split(line, "|")
+		if len(parts) < 4 {
+			continue
+		}
+
+		chanStr := strings.TrimSpace(parts[1])
+		rssiStr := strings.TrimSpace(parts[2])
+
+		channel, err := strconv.Atoi(chanStr)
+		if err != nil {
+			continue
+		}
+
+		rssi, err := strconv.Atoi(rssiStr)
+		if err != nil {
+			continue
+		}
+
+		rating, recommendation := AnalyzeChannel(channel, rssi)
+
+		results = append(results, ChannelScanResult{
+			Channel:        channel,
+			RSSI:           rssi,
+			Rating:         rating,
+			Recommendation: recommendation,
+		})
+	}
+
+	return results, nil
+}
+
+// AnalyzeChannel evaluates the channel RSSI and provides smart rating and Wi-Fi co-existence guidance.
+func AnalyzeChannel(channel int, rssi int) (string, string) {
+	var rating string
+	var reason string
+
+	if rssi <= -85 {
+		rating = "Excellent"
+	} else if rssi <= -75 {
+		rating = "Good"
+	} else if rssi <= -65 {
+		rating = "Fair"
+	} else {
+		rating = "Poor"
+	}
+
+	switch channel {
+	case 11, 12, 13, 14:
+		reason = "Overlaps with 2.4GHz Wi-Fi Channel 1. Strong router traffic will introduce noise."
+	case 15:
+		reason = "Quiet gap between 2.4GHz Wi-Fi Channels 1 and 6. Highly recommended!"
+	case 16, 17, 18, 19:
+		reason = "Overlaps with 2.4GHz Wi-Fi Channel 6 (common router default frequency)."
+	case 20:
+		reason = "Quiet gap between 2.4GHz Wi-Fi Channels 6 and 11. Excellent alternative channel."
+	case 21, 22, 23, 24:
+		reason = "Overlaps with 2.4GHz Wi-Fi Channel 11. Heavy traffic is common here."
+	case 25:
+		reason = "Sits above 2.4GHz Wi-Fi Channel 11. Highly clear and reliable frequency."
+	case 26:
+		reason = "Completely clear of standard Wi-Fi channels. Note that legacy hardware may have reduced power here."
+	default:
+		reason = "Standard IEEE 802.15.4 channel frequency."
+	}
+
+	var advice string
+	switch rating {
+	case "Excellent":
+		advice = fmt.Sprintf("Excellent (noise: %d dBm). %s", rssi, reason)
+	case "Good":
+		advice = fmt.Sprintf("Good (noise: %d dBm). %s", rssi, reason)
+	case "Fair":
+		advice = fmt.Sprintf("Fair (noise: %d dBm). %s", rssi, reason)
+	case "Poor":
+		advice = fmt.Sprintf("Poor (noise: %d dBm). %s Avoid this congested channel.", rssi, reason)
+	}
+
+	return rating, advice
 }

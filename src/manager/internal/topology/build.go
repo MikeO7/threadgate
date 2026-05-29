@@ -80,6 +80,8 @@ func assembleSnapshot(values map[string]string, warnings []string) Snapshot {
 	children := parseChildTable(values[otctl.LabelChildTable])
 	routers := parseRouterTable(values[otctl.LabelRouterTable])
 	snap.Counters = parseCounters(values[otctl.LabelCounters])
+	snap.LeaderData = parseLeaderData(values[otctl.LabelLeaderData])
+	snap.Prefixes = parsePrefixTable(values[otctl.LabelPrefixTable])
 
 	gatewayRloc := normalizeGatewayRloc(snap.Rloc16)
 

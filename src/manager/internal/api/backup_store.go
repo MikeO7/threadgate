@@ -201,7 +201,11 @@ func (b *BackupStore) Save(ctx context.Context) (filename, path string, err erro
 		return "", "", err
 	}
 
-	filename = fmt.Sprintf("threadgate-backup-%s.json", time.Now().UTC().Format("20060102-150405"))
+	chanSuffix := ""
+	if backup.Channel != "" {
+		chanSuffix = "-ch" + backup.Channel
+	}
+	filename = fmt.Sprintf("threadgate-backup%s-%s.json", chanSuffix, time.Now().UTC().Format("20060102-150405"))
 	path = filepath.Join(dir, filename)
 
 	data, err := json.MarshalIndent(backup, "", "  ")

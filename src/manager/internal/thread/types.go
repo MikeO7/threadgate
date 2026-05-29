@@ -16,3 +16,11 @@ type Diagnostics struct {
 	NeighborTable []string `json:"NeighborTable"`
 	Timestamp     string   `json:"Timestamp"`
 }
+
+// ChannelScanResult holds the parsed and analyzed details for one 802.15.4 channel.
+type ChannelScanResult struct {
+	Channel        int    `json:"channel"`
+	RSSI           int    `json:"rssi"`
+	Rating         string `json:"rating"`
+	Recommendation string `json:"recommendation"`
+}

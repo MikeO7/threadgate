@@ -21,6 +21,8 @@ type Config struct {
 	ExplicitFlowControl bool   // Whether FlowControl was set explicitly in the environment
 	ExplicitBaudrate    bool   // Whether Baudrate was set explicitly in the environment
 	BackboneIF          string // Backbone interface for border routing (e.g. eth0, wlan0)
+	HassURL             string // Home Assistant URL e.g. "http://192.168.1.100:8123"
+	HassToken           string // Home Assistant Long-Lived Access Token
 }
 
 const defaultBackboneInterface = "eth0"
@@ -39,6 +41,8 @@ func Load() *Config {
 		FlowControl:         getEnvBool("OTBR_FLOW_CONTROL", false),
 		ExplicitFlowControl: explicitFlowControl,
 		ExplicitBaudrate:    explicitBaudrate,
+		HassURL:             strings.TrimSuffix(os.Getenv("OTBR_HASS_URL"), "/"),
+		HassToken:           os.Getenv("OTBR_HASS_TOKEN"),
 	}
 
 	baud, err := strconv.Atoi(os.Getenv("OTBR_BAUDRATE"))

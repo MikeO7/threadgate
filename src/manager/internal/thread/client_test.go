@@ -83,6 +83,8 @@ func snapshotFixtureOtCtl(t *testing.T) func(context.Context, ...string) (string
 		otctl.NeighborTable.Key(): readFixture(t, "neighbor_table.txt"),
 		otctl.ChildTable.Key():    readFixture(t, "child_table.txt"),
 		otctl.RouterTable.Key():   readFixture(t, "router_table.txt"),
+		otctl.LeaderData.Key():    "Partition ID: 2271874287\nWeighting: 64\nNetwork Data Version: 111\nStable Network Data Version: 112\nLeader Router ID: 50\nDone",
+		otctl.PrefixTable.Key():   "fd11:22::/64 paros med stable\nDone",
 	}
 
 	return func(_ context.Context, args ...string) (string, error) {
@@ -103,4 +105,52 @@ func readFixture(t *testing.T, name string) string {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
 	return string(b)
+}
+
+func TestScanChannels(t *testing.T) {
+	mockOutput := `| Ch | RSSI |
++----+------+
+| 11 |  -82 |
+| 15 |  -92 |
+| 20 |  -70 |
+| 26 |  -55 |
+Done`
+
+	runner := FuncRunner(func(_ context.Context, args ...string) (string, error) {
+		key := otctl.Command{Args: args}.Key()
+		if key == otctl.ScanEnergy.Key() {
+			return mockOutput, nil
+		}
+		return "", fmt.Errorf("unknown command: %s", key)
+	})
+
+	client := NewClient(runner, PolicyBestEffort)
+	results, err := client.ScanChannels(context.Background())
+	if err != nil {
+		t.Fatalf("ScanChannels failed: %v", err)
+	}
+
+	if len(results) != 4 {
+		t.Fatalf("expected 4 results, got %d", len(results))
+	}
+
+	// Test channel 11 (-82 RSSI -> Good)
+	if results[0].Channel != 11 || results[0].RSSI != -82 || results[0].Rating != "Good" {
+		t.Errorf("channel 11 parsed incorrectly: %+v", results[0])
+	}
+
+	// Test channel 15 (-92 RSSI -> Excellent)
+	if results[1].Channel != 15 || results[1].RSSI != -92 || results[1].Rating != "Excellent" {
+		t.Errorf("channel 15 parsed incorrectly: %+v", results[1])
+	}
+
+	// Test channel 20 (-70 RSSI -> Fair)
+	if results[2].Channel != 20 || results[2].RSSI != -70 || results[2].Rating != "Fair" {
+		t.Errorf("channel 20 parsed incorrectly: %+v", results[2])
+	}
+
+	// Test channel 26 (-55 RSSI -> Poor)
+	if results[3].Channel != 26 || results[3].RSSI != -55 || results[3].Rating != "Poor" {
+		t.Errorf("channel 26 parsed incorrectly: %+v", results[3])
+	}
 }

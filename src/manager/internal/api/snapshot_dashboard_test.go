@@ -9,9 +9,9 @@ import (
 
 func TestNewDashboardView(t *testing.T) {
 	snap := topology.BuildFromTables("0xc000", "", "", "")
-	view := NewDashboardView(snap, 9090, true, runtime.Status{})
-	if view.Port != 9090 || !view.MockMode {
-		t.Fatalf("unexpected dashboard view: port=%d mock=%t", view.Port, view.MockMode)
+	view := NewDashboardView(snap, 9090, true, runtime.Status{}, true)
+	if view.Port != 9090 || !view.MockMode || !view.HassEnabled {
+		t.Fatalf("unexpected dashboard view: port=%d mock=%t hass=%t", view.Port, view.MockMode, view.HassEnabled)
 	}
 	if len(view.TopologyJSON) == 0 {
 		t.Fatal("expected embedded topology JSON")

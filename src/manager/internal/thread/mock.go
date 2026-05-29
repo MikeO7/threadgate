@@ -107,6 +107,9 @@ type mockStateData struct {
 	neighborTable string
 	childTable    string
 	routerTable   string
+	leaderdata    string
+	prefix        string
+	scanEnergy    string
 }
 
 func defaultMockState() mockStateData {
@@ -124,6 +127,9 @@ func defaultMockState() mockStateData {
 		neighborTable: buildMockNeighborTable(MockDirectCount),
 		childTable:    buildMockChildTable(),
 		routerTable:   buildMockRouterTable(MockRouterCount),
+		leaderdata:    "Partition ID: 2271874287\nWeighting: 64\nNetwork Data Version: 111\nStable Network Data Version: 112\nLeader Router ID: 50\nDone",
+		prefix:        "fd11:22::/64 paros med stable\nDone",
+		scanEnergy:    "| Ch | RSSI |\n+----+------+\n| 11 |  -82 |\n| 12 |  -85 |\n| 13 |  -89 |\n| 14 |  -87 |\n| 15 |  -92 |\n| 16 |  -86 |\n| 17 |  -86 |\n| 18 |  -72 |\n| 19 |  -65 |\n| 20 |  -90 |\n| 21 |  -84 |\n| 22 |  -82 |\n| 23 |  -80 |\n| 24 |  -78 |\n| 25 |  -95 |\n| 26 |  -98 |\nDone",
 	}
 }
 
@@ -165,6 +171,9 @@ var mockStateGetters = map[string]func(*mockStateData) string{
 	otctl.RouterTable.Key():    func(s *mockStateData) string { return s.routerTable },
 	otctl.DatasetActive.Key():  func(s *mockStateData) string { return s.activeHex },
 	otctl.DatasetPending.Key(): func(s *mockStateData) string { return s.pendingHex },
+	otctl.LeaderData.Key():     func(s *mockStateData) string { return s.leaderdata },
+	otctl.PrefixTable.Key():    func(s *mockStateData) string { return s.prefix },
+	otctl.ScanEnergy.Key():     func(s *mockStateData) string { return s.scanEnergy },
 }
 
 func runMockDatasetCommand(state *mockStateData, cmd string) (string, error) {

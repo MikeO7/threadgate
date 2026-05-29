@@ -75,6 +75,13 @@ func TestHandleBackupExport(t *testing.T) {
 	if backup.NetworkName != testNetworkName {
 		t.Errorf("expected network name %q, got %q", testNetworkName, backup.NetworkName)
 	}
+	if backup.Channel != "15" {
+		t.Errorf("expected channel %q, got %q", "15", backup.Channel)
+	}
+	disposition := rr.Header().Get("Content-Disposition")
+	if !strings.Contains(disposition, "threadgate-backup-ch15-") {
+		t.Errorf("expected Content-Disposition to contain channel suffix, got %q", disposition)
+	}
 }
 
 func TestHandleBackupImport(t *testing.T) {
@@ -143,6 +150,9 @@ func TestHandleBackupSave(t *testing.T) {
 	filename := saveResp["filename"]
 	if filename == "" {
 		t.Fatal("expected filename in save response")
+	}
+	if !strings.HasPrefix(filename, "threadgate-backup-ch15-") {
+		t.Errorf("expected filename to start with threadgate-backup-ch15-, got %q", filename)
 	}
 
 	path := filepath.Join(dir, "backups", filename)

@@ -41,16 +41,37 @@ type Snapshot struct {
 	Counters      []Counter           `json:"counters"`
 	ActiveDataset string              `json:"activeDataset,omitempty"`
 	Warnings      []string            `json:"warnings,omitempty"`
+	DeviceNames   map[string]string   `json:"deviceNames,omitempty"`
+	LeaderData    LeaderData          `json:"leaderData"`
+	Prefixes      []PrefixEntry       `json:"prefixes"`
+}
+
+// LeaderData holds partition and leader details.
+type LeaderData struct {
+	PartitionID       uint32 `json:"partitionId"`
+	Weighting         int    `json:"weighting"`
+	NetworkDataVer    int    `json:"networkDataVersion"`
+	StableNetworkData int    `json:"stableNetworkDataVersion"`
+	LeaderRouterID    int    `json:"leaderRouterId"`
+}
+
+// PrefixEntry represents an active on-mesh IPv6 prefix configured in the Thread network.
+type PrefixEntry struct {
+	Prefix     string   `json:"prefix"`
+	Flags      []string `json:"flags"`
+	Stable     bool     `json:"stable"`
+	Preference string   `json:"preference"`
 }
 
 // Neighbor represents an adjacent Thread device reachable by this node.
 type Neighbor struct {
-	ExtAddr     string `json:"extAddr"`
-	Rloc16      string `json:"rloc16"`
-	LQI         int    `json:"lqi"`
-	PathCost    int    `json:"pathCost"`
-	NextHopRloc string `json:"nextHopRloc,omitempty"`
-	Role        string `json:"role,omitempty"`
+	ExtAddr      string `json:"extAddr"`
+	Rloc16       string `json:"rloc16"`
+	LQI          int    `json:"lqi"`
+	PathCost     int    `json:"pathCost"`
+	NextHopRloc  string `json:"nextHopRloc,omitempty"`
+	Role         string `json:"role,omitempty"`
+	FriendlyName string `json:"friendlyName,omitempty"`
 }
 
 // ChildEntry represents a sleepy or end-device connected directly to this node.

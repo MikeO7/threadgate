@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.3" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Squircle -->
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#bgGrad)" />
+  
+  <!-- Sleek Hexagonal Topology Mesh Outline -->
+  <polygon points="24,10 36.1,17 36.1,31 24,38 11.9,31 11.9,17" fill="none" stroke="url(#glowGrad)" stroke-width="2" stroke-linejoin="round" />
+  
+  <!-- Radial Network Mesh Connectors -->
+  <line x1="24" y1="10" x2="24" y2="24" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6" />
+  <line x1="11.9" y1="31" x2="24" y2="24" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6" />
+  <line x1="36.1" y1="31" x2="24" y2="24" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6" />
+  
+  <!-- Outer Interconnected Node Points -->
+  <circle cx="24" cy="10" r="3" fill="#ffffff" />
+  <circle cx="11.9" cy="17" r="2" fill="#ffffff" fill-opacity="0.55" />
+  <circle cx="36.1" cy="17" r="2" fill="#ffffff" fill-opacity="0.55" />
+  <circle cx="36.1" cy="31" r="3" fill="#ffffff" />
+  <circle cx="11.9" cy="31" r="3" fill="#ffffff" />
+  <circle cx="24" cy="38" r="2" fill="#ffffff" fill-opacity="0.55" />
+  
+  <!-- Central Hub (Gateway Leader Node) -->
+  <circle cx="24" cy="24" r="4.5" fill="#ffffff" />
+</svg>

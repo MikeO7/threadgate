@@ -26,6 +26,7 @@ type Server struct {
 	mu             sync.Mutex
 	srv            *http.Server
 	statusReporter runtime.Reporter
+	hassClient     *HassClient
 }
 
 // NewServer creates a server wired to the composition root Env.
@@ -40,6 +41,7 @@ func NewServer(e *env.Env, port int, stateDir string) *Server {
 		threads:        e.Thread,
 		backup:         NewBackupStore(e.Thread, stateDir),
 		statusReporter: reporter,
+		hassClient:     NewHassClient(e.Config),
 	}
 }
 
@@ -53,6 +55,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		pattern string
 		handler http.HandlerFunc
 	}{
+		{"/api/node/channels/scan", s.handleChannelScan},
 		{"/api/node", s.handleNodeInfo},
 		{"/api/health", s.handleHealth},
 		{"/node/dataset/active", s.handleActiveDataset},
@@ -67,12 +70,15 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		{"/api/backup/files", s.handleBackup},
 		{"/api/backup", s.handleBackup},
 		{"/api/trace/flush", s.handleTraceFlush},
+		{"/logo.svg", s.handleLogo},
+		{"/favicon.ico", s.handleLogo},
 		{"/", s.handleDashboard},
 	}
 	for _, route := range routes {
 		mux.HandleFunc(route.pattern, route.handler)
 	}
 }
+
 
 // Handler returns the HTTP handler for testing without binding a port.
 func (s *Server) Handler() http.Handler {
@@ -118,6 +124,25 @@ func (s *Server) handleNodeInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		log.Printf("[API Server] Failed to encode response: %v\n", err)
+	}
+}
+
+func (s *Server) handleChannelScan(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	results, err := s.threads.ScanChannels(r.Context())
+	if err != nil {
+		log.Printf("[API Server] ChannelScan failed: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		log.Printf("[API Server] Failed to encode channel scan results: %v\n", err)
 	}
 }
 
@@ -249,6 +274,20 @@ func (s *Server) handleTopology(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[API Server] Topology snapshot partial: %v\n", err)
 	}
+	if s.hassClient.Enabled() {
+		names, hassErr := s.hassClient.FetchDeviceNames(r.Context())
+		if hassErr != nil {
+			log.Printf("[API Server] Home Assistant fetch failed: %v\n", hassErr)
+		} else if len(names) > 0 {
+			snap.DeviceNames = names
+			for i := range snap.Neighbors {
+				normMac := normalizeMac(snap.Neighbors[i].ExtAddr)
+				if name, ok := names[normMac]; ok {
+					snap.Neighbors[i].FriendlyName = name
+				}
+			}
+		}
+	}
 	if err := json.NewEncoder(w).Encode(snap); err != nil {
 		log.Printf("[API Server] Failed to encode topology: %v\n", err)
 	}
@@ -266,12 +305,26 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[API Server] Dashboard snapshot partial: %v\n", err)
 	}
+	if s.hassClient.Enabled() {
+		names, hassErr := s.hassClient.FetchDeviceNames(r.Context())
+		if hassErr != nil {
+			log.Printf("[API Server] Home Assistant fetch failed: %v\n", hassErr)
+		} else if len(names) > 0 {
+			snap.DeviceNames = names
+			for i := range snap.Neighbors {
+				normMac := normalizeMac(snap.Neighbors[i].ExtAddr)
+				if name, ok := names[normMac]; ok {
+					snap.Neighbors[i].FriendlyName = name
+				}
+			}
+		}
+	}
 
 	var status runtime.Status
 	if s.statusReporter != nil {
 		status = s.statusReporter.GetStatus()
 	}
-	view := NewDashboardView(snap, s.port, s.env.IsMock(), status)
+	view := NewDashboardView(snap, s.port, s.env.IsMock(), status, s.hassClient.Enabled())
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
 	if err := tmpl.Execute(w, view); err != nil {
 		log.Printf("[API Server] Failed to execute template: %v\n", err)
@@ -310,3 +363,11 @@ func (s *Server) handleTraceFlush(w http.ResponseWriter, r *http.Request) {
 		jsonKeyMessage: "Continuous execution trace flushed successfully",
 	})
 }
+
+func (s *Server) handleLogo(w http.ResponseWriter, r *http.Request) {
+	_ = r
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write([]byte(logoSVG))
+}
+
