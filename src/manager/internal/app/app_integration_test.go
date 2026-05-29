@@ -92,12 +92,20 @@ func TestAppRunWithProbeError(t *testing.T) {
 		LogLevel:     "info",
 	}
 
-	// Keep hardware runtime but hide system daemons so supervisor boot fails consistently in CI.
 	t.Setenv("PATH", t.TempDir())
 
-	err := (&App{cfg: cfg}).Run()
-	if err == nil {
-		t.Fatal("expected supervisor boot failure on hardware runtime")
+	oldWait := waitForShutdownHook
+	waitForShutdownHook = func(server *api.Server, super *supervisor.Supervisor, cancel context.CancelFunc, _ <-chan error, _ chan os.Signal) {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
+		super.Stop()
+		cancel()
+	}
+	t.Cleanup(func() { waitForShutdownHook = oldWait })
+
+	if err := (&App{cfg: cfg}).Run(); err != nil {
+		t.Fatalf("Run should continue despite radio probe failure: %v", err)
 	}
 }
 
