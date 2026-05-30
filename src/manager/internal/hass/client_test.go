@@ -35,7 +35,7 @@ var testMockDevices = []struct {
 	{
 		Name: "Kitchen Temp Sensor",
 		Connections: [][]any{
-			{"zigbee", "11:22:33:44:55:66:77:01"},
+			{ConnTypeZigbee, "11:22:33:44:55:66:77:01"},
 		},
 	},
 	{
@@ -120,4 +120,32 @@ func TestMapConnection(t *testing.T) {
 	if _, ok := mapConnection("ip", "192.168.1.1"); ok {
 		t.Fatal("expected ip connection to be ignored")
 	}
+}
+
+func TestDeviceFromConnections(t *testing.T) {
+    connections := [][]any{
+        {ConnTypeZigbee, "11:22:33:44:55:66:77:01"},
+        {"ip", "192.168.1.1"},
+    }
+
+    names := deviceFromConnections("Test Device", "Acme", "Model X", "1.0", "dev_123", "90", "on", connections)
+
+    if len(names) != 1 {
+        t.Fatalf("Expected 1 mapped name, got %d", len(names))
+    }
+
+    device, ok := names["1122334455667701"]
+    if !ok {
+        t.Fatalf("Expected MAC 1122334455667701 to be present")
+    }
+
+    if device.Name != "Test Device" {
+        t.Errorf("Expected Test Device, got %q", device.Name)
+    }
+    if device.Manufacturer != "Acme" {
+        t.Errorf("Expected Acme, got %q", device.Manufacturer)
+    }
+    if device.Battery != "90" {
+        t.Errorf("Expected Battery 90, got %q", device.Battery)
+    }
 }
