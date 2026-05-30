@@ -103,6 +103,11 @@ func TestParseDatasetHTTPBody_Basic(t *testing.T) {
 	}
 }
 
+func buildJSONPayload(p datasetPayload) []byte {
+	b, _ := json.Marshal(p)
+	return b
+}
+
 func TestParseDatasetHTTPBody_JSON(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -111,52 +116,37 @@ func TestParseDatasetHTTPBody_JSON(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "JSON with ActiveDatasetTlvs",
-			body: func() []byte {
-				b, _ := json.Marshal(datasetPayload{ActiveDatasetTlvs: testValidHex})
-				return b
-			}(),
+			name:    "JSON with ActiveDatasetTlvs",
+			body:    buildJSONPayload(datasetPayload{ActiveDatasetTlvs: testValidHex}),
 			wantHex: testValidHex,
 			wantErr: false,
 		},
 		{
-			name: "JSON with ActiveDataset",
-			body: func() []byte {
-				b, _ := json.Marshal(datasetPayload{ActiveDataset: testValidHex})
-				return b
-			}(),
+			name:    "JSON with ActiveDataset",
+			body:    buildJSONPayload(datasetPayload{ActiveDataset: testValidHex}),
 			wantHex: testValidHex,
 			wantErr: false,
 		},
 		{
-			name: "JSON with PendingDatasetTlvs",
-			body: func() []byte {
-				b, _ := json.Marshal(datasetPayload{PendingDatasetTlvs: testValidHex})
-				return b
-			}(),
+			name:    "JSON with PendingDatasetTlvs",
+			body:    buildJSONPayload(datasetPayload{PendingDatasetTlvs: testValidHex}),
 			wantHex: testValidHex,
 			wantErr: false,
 		},
 		{
-			name: "JSON with PendingDataset",
-			body: func() []byte {
-				b, _ := json.Marshal(datasetPayload{PendingDataset: testValidHex})
-				return b
-			}(),
+			name:    "JSON with PendingDataset",
+			body:    buildJSONPayload(datasetPayload{PendingDataset: testValidHex}),
 			wantHex: testValidHex,
 			wantErr: false,
 		},
 		{
-			name: "JSON with empty values",
-			body: func() []byte {
-				b, _ := json.Marshal(datasetPayload{ActiveDataset: "  "})
-				return b
-			}(),
+			name:    "JSON with empty values",
+			body:    buildJSONPayload(datasetPayload{ActiveDataset: "  "}),
 			wantErr: true,
 		},
 		{
-			name: "JSON with no useful fields",
-			body: []byte(`{"some_other_field": "123"}`),
+			name:    "JSON with no useful fields",
+			body:    []byte(`{"some_other_field": "123"}`),
 			wantErr: true,
 		},
 	}
