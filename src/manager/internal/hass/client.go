@@ -1,3 +1,4 @@
+// Package hass is the deep Home Assistant client module: WebSocket registry, HTTP fallback, and credential storage.
 package hass
 
 import (
@@ -293,6 +294,9 @@ const (
 	StatusDisabled  = "Disabled"
 	StatusPending   = "Pending"
 	StatusMock      = "Mock"
+
+	// ConnTypeZigbee is the literal string for a Zigbee connection.
+	ConnTypeZigbee = "zigbee"
 )
 
 // NormalizeMac strips separators and lowercases a MAC or extended address for map lookup.
@@ -450,7 +454,7 @@ func registryName(dev registryDevice) string {
 
 // mapConnection extracts a normalized MAC from a Home Assistant device connection tuple.
 func mapConnection(connType, connVal string) (string, bool) {
-	if connType != "zigbee" && connType != "mac" && connType != "thread" {
+	if connType != ConnTypeZigbee && connType != "mac" && connType != "thread" {
 		return "", false
 	}
 	mac := NormalizeMac(connVal)

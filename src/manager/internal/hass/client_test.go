@@ -35,7 +35,7 @@ var testMockDevices = []struct {
 	{
 		Name: "Kitchen Temp Sensor",
 		Connections: [][]any{
-			{"zigbee", "11:22:33:44:55:66:77:01"},
+			{ConnTypeZigbee, "11:22:33:44:55:66:77:01"},
 		},
 	},
 	{
@@ -124,7 +124,7 @@ func TestMapConnection(t *testing.T) {
 
 func TestDeviceFromConnections(t *testing.T) {
     connections := [][]any{
-        {"zigbee", "11:22:33:44:55:66:77:01"},
+        {ConnTypeZigbee, "11:22:33:44:55:66:77:01"},
         {"ip", "192.168.1.1"},
     }
 
