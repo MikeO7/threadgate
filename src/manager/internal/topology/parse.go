@@ -284,13 +284,14 @@ func parseCounterLine(line string) (string, string, bool) {
 		return "", "", false
 	}
 	var key, val string
-	if strings.Contains(line, "=") {
+	switch {
+	case strings.Contains(line, "="):
 		parts := strings.SplitN(line, "=", 2)
 		key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	} else if strings.Contains(line, ":") {
+	case strings.Contains(line, ":"):
 		parts := strings.SplitN(line, ":", 2)
 		key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	} else {
+	default:
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			key, val = parts[0], parts[1]
