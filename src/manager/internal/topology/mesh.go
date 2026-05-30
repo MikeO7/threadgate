@@ -12,13 +12,26 @@ func mergeMeshNodes(neighbors []Neighbor, children []ChildEntry, routers []Route
 	if len(byRloc) == 0 {
 		return neighbors
 	}
-	out := make([]Neighbor, 0, len(byRloc))
-	for _, n := range byRloc {
-		out = append(out, n)
+
+	// ⚡ Bolt: Use a Schwartzian transform to cache normalized Rloc16 strings for sorting.
+	// This avoids expensive normalizeRloc16 calls on every sort comparison (O(N log N))
+	// while remaining strictly faithful to the original data source.
+	type sortNode struct {
+		norm string
+		node Neighbor
 	}
-	sort.Slice(out, func(i, j int) bool {
-		return normalizeRloc16(out[i].Rloc16) < normalizeRloc16(out[j].Rloc16)
+	nodes := make([]sortNode, 0, len(byRloc))
+	for _, n := range byRloc {
+		nodes = append(nodes, sortNode{norm: normalizeRloc16(n.Rloc16), node: n})
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].norm < nodes[j].norm
 	})
+
+	out := make([]Neighbor, len(nodes))
+	for i, sn := range nodes {
+		out[i] = sn.node
+	}
 	return out
 }
 
