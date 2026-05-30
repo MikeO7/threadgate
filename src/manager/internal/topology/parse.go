@@ -271,29 +271,35 @@ const (
 func parseCounters(output string) []Counter {
 	var list []Counter
 	for line := range strings.SplitSeq(output, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var key, val string
-		switch {
-		case strings.Contains(line, "="):
-			parts := strings.SplitN(line, "=", 2)
-			key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-		case strings.Contains(line, ":"):
-			parts := strings.SplitN(line, ":", 2)
-			key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-		default:
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				key, val = parts[0], parts[1]
-			}
-		}
-		if key != "" && val != "" {
+		if key, val, ok := parseCounterLine(line); ok {
 			list = append(list, Counter{Key: key, Val: val})
 		}
 	}
 	return list
+}
+
+func parseCounterLine(line string) (string, string, bool) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return "", "", false
+	}
+	var key, val string
+	if strings.Contains(line, "=") {
+		parts := strings.SplitN(line, "=", 2)
+		key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	} else if strings.Contains(line, ":") {
+		parts := strings.SplitN(line, ":", 2)
+		key, val = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	} else {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			key, val = parts[0], parts[1]
+		}
+	}
+	if key != "" && val != "" {
+		return key, val, true
+	}
+	return "", "", false
 }
 
 func parseLeaderData(output string) LeaderData {
