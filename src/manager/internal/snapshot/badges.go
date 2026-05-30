@@ -20,11 +20,11 @@ type StatusBadge struct {
 }
 
 const (
-	badgeVariantSuccess  = "success"
-	badgeVariantWarning  = "warning"
-	badgeVariantDanger   = "danger"
-	badgeVariantMuted    = "muted"
-	badgeVariantCyan     = "cyan"
+	badgeVariantSuccess   = "success"
+	badgeVariantWarning   = "warning"
+	badgeVariantDanger    = "danger"
+	badgeVariantMuted     = "muted"
+	badgeVariantCyan      = "cyan"
 	badgeVariantSecondary = "secondary"
 
 	radioBadgeHelp  = "USB Thread dongle and border router (otbr-agent) health."

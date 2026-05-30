@@ -8,10 +8,10 @@ import (
 
 func TestBootstrapMockMode(t *testing.T) {
 	cfg := &config.Config{
-		Runtime:       config.RuntimeModeFromMock(true),
-		StateDir:      "/tmp/threadgate-test",
-		RadioURL:      "spinel+hdlc+uart:///dev/ttyUSB0",
-		AutoDiscover:  false,
+		Runtime:      config.RuntimeModeFromMock(true),
+		StateDir:     "/tmp/threadgate-test",
+		RadioURL:     "spinel+hdlc+uart:///dev/ttyUSB0",
+		AutoDiscover: false,
 	}
 	e, err := Bootstrap(cfg)
 	if err != nil {

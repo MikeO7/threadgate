@@ -15,7 +15,6 @@ import (
 	"time"
 )
 
-
 // mockAgentSleep controls how long the simulated otbr-agent loop waits (overridable in tests).
 var mockAgentSleep = 10 * time.Minute
 

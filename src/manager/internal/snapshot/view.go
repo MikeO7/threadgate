@@ -22,7 +22,15 @@ type DashboardModel struct {
 }
 
 // BuildDashboard collects topology, enriches with HA names, and derives header badges.
-func (s *Service) BuildDashboard(ctx context.Context, port int, mockMode bool, status runtime.Status, hassEnabled bool, hassURL string) DashboardModel {
+func (s *Service) BuildDashboard(
+	ctx context.Context,
+	port int,
+	mockMode bool,
+	mockSetupChecklist bool,
+	status runtime.Status,
+	hassEnabled bool,
+	hassURL string,
+) DashboardModel {
 	enriched := s.Build(ctx)
 	hostAudit := hardware.AuditHost(mockMode)
 	return DashboardModel{
@@ -32,7 +40,7 @@ func (s *Service) BuildDashboard(ctx context.Context, port int, mockMode bool, s
 		HassEnabled: hassEnabled,
 		HassURL:     hassURL,
 		Status:      status,
-		SetupGuide:  BuildSetupGuide(mockMode, hostAudit, status),
+		SetupGuide:  BuildSetupGuide(mockMode, mockSetupChecklist, hostAudit, status),
 		RadioBadge:  RadioBadge(status, mockMode),
 		ThreadBadge: ThreadBadge(enriched.Snapshot),
 		HassBadge:   HassBadge(enriched.HassStatus, enriched.HassError),

@@ -28,7 +28,7 @@ func TestRadioBadge(t *testing.T) {
 		{
 			name: "probe error",
 			status: runtime.Status{
-				RadioPath:  "/dev/ttyUSB0",
+				RadioPath:  testRadioPath,
 				ProbeError: "timeout",
 			},
 			label:   "Dongle Error",
@@ -37,7 +37,7 @@ func TestRadioBadge(t *testing.T) {
 		{
 			name: "connected",
 			status: runtime.Status{
-				RadioPath:     "/dev/ttyUSB0",
+				RadioPath:     testRadioPath,
 				ProbedVersion: "RCP/2.0",
 				Agent:         runtime.AgentStatus{State: "running"},
 			},

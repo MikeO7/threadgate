@@ -121,7 +121,7 @@ func (s *Server) handleTraceFlush(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		jsonKeyStatus: "success",
+		jsonKeyStatus:  "success",
 		"path":         tracePath,
 		jsonKeyMessage: "Continuous execution trace flushed successfully",
 	})

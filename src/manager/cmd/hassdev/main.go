@@ -29,19 +29,19 @@ func main() {
 }
 
 var commands = map[string]func(context.Context, hassdev.Config, []string){
-	"setup":          runSetup,
-	"pair":           runPair,
-	"pair-initiate":  runPairInitiate,
-	"test":           runTest,
-	"fixture-build":  runFixtureBuild,
-	"fixture-apply":  runFixtureApply,
-	"wait-ha":        runWaitHA,
-	"wait-tg":        runWaitTG,
-	"seed-devices":   runSeedDevices,
-	"ensure-otbr":    runEnsureOTBR,
-	"repair-otbr":    runRepairOTBR,
-	"verify":         runVerify,
-	"ensure-core":    runEnsureCore,
+	"setup":         runSetup,
+	"pair":          runPair,
+	"pair-initiate": runPairInitiate,
+	"test":          runTest,
+	"fixture-build": runFixtureBuild,
+	"fixture-apply": runFixtureApply,
+	"wait-ha":       runWaitHA,
+	"wait-tg":       runWaitTG,
+	"seed-devices":  runSeedDevices,
+	"ensure-otbr":   runEnsureOTBR,
+	"repair-otbr":   runRepairOTBR,
+	"verify":        runVerify,
+	"ensure-core":   runEnsureCore,
 }
 
 func runSetup(ctx context.Context, cfg hassdev.Config, args []string) {

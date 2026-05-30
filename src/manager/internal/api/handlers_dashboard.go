@@ -27,7 +27,15 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if s.statusReporter != nil {
 		status = s.statusReporter.GetStatus()
 	}
-	model := s.snapSvc.BuildDashboard(r.Context(), s.port, s.env.IsMock(), status, s.hassClient.Enabled(), s.hassClient.URL())
+	model := s.snapSvc.BuildDashboard(
+		r.Context(),
+		s.port,
+		s.env.IsMock(),
+		s.env.Config.MockSetupChecklist,
+		status,
+		s.hassClient.Enabled(),
+		s.hassClient.URL(),
+	)
 	view := NewDashboardView(model)
 	tmpl := template.Must(template.New("dashboard").Funcs(template.FuncMap{
 		"isLowBattery": func(battery string) bool {

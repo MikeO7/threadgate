@@ -14,7 +14,7 @@ const (
 	jsonKeyMessage = "message"
 	jsonStatusOK   = "ok"
 
-	testNetworkName = "Thread-Test"
-	testGatewayKey  = "c000"
+	testNetworkName   = "Thread-Test"
+	testGatewayKey    = "c000"
 	threadStateLeader = "leader"
 )

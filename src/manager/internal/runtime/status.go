@@ -17,11 +17,11 @@ type AgentStatus struct {
 
 // Status is orchestration-wide health: host audit, radio probe, and agent lifecycle.
 type Status struct {
-	HostAudit     hardware.HostAudit `json:"hostAudit"`
-	ProbedVersion string             `json:"probedVersion"`
-	ProbeError    string             `json:"probeError,omitempty"`
-	RadioPath     string             `json:"radioPath,omitempty"`
-	Agent         AgentStatus        `json:"agent"`
+	HostAudit      hardware.HostAudit `json:"hostAudit"`
+	ProbedVersion  string             `json:"probedVersion"`
+	ProbeError     string             `json:"probeError,omitempty"`
+	RadioPath      string             `json:"radioPath,omitempty"`
+	Agent          AgentStatus        `json:"agent"`
 	DetectedDevice string             `json:"detectedDevice,omitempty"`
 }
 

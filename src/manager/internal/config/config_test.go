@@ -14,6 +14,7 @@ func TestLoadDefaults(t *testing.T) {
 	_ = os.Unsetenv("OTBR_BAUDRATE")
 	_ = os.Unsetenv("OTBR_PORT")
 	_ = os.Unsetenv("OTBR_MOCK_MODE")
+	_ = os.Unsetenv("OTBR_MOCK_SETUP_CHECKLIST")
 
 	cfg := Load()
 
@@ -37,6 +38,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.Runtime.IsMock() {
 		t.Errorf("Expected mock runtime default false, got mock")
+	}
+	if cfg.MockSetupChecklist {
+		t.Errorf("Expected MockSetupChecklist default false, got true")
 	}
 }
 
@@ -81,6 +85,21 @@ func TestLoadCustomValues(t *testing.T) {
 	}
 	if !cfg.Runtime.IsMock() {
 		t.Errorf("Expected mock runtime true, got hardware")
+	}
+}
+
+func TestLoadMockSetupChecklist(t *testing.T) {
+	_ = os.Setenv("OTBR_MOCK_SETUP_CHECKLIST", "true")
+	defer func() {
+		_ = os.Unsetenv("OTBR_MOCK_SETUP_CHECKLIST")
+	}()
+
+	cfg := Load()
+	if !cfg.MockSetupChecklist {
+		t.Fatal("expected MockSetupChecklist true")
+	}
+	if cfg.Runtime.IsMock() {
+		t.Fatal("setup checklist mock should not enable full OTBR mock mode")
 	}
 }
 

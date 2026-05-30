@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	badgeVariantSuccess = "success"
-	badgeVariantWarning = "warning"
-	badgeVariantDanger  = "danger"
+	badgeVariantSuccess   = "success"
+	badgeVariantWarning   = "warning"
+	badgeVariantDanger    = "danger"
 	badgeVariantSecondary = "secondary"
 )
 

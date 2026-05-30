@@ -56,3 +56,4 @@ services:
       - OTBR_PORT=8081
       - OTBR_AUTO_DISCOVER=true
       - OTBR_LOG_LEVEL=info
+      # - OTBR_MOCK_SETUP_CHECKLIST=true  # force Production Setup Checklist preview on dashboard

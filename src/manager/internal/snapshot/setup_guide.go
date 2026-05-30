@@ -13,6 +13,7 @@ const silabsFlasherURL = "https://darkxst.github.io/silabs-firmware-builder/"
 // SetupGuide is the ordered production checklist shown on the dashboard.
 type SetupGuide struct {
 	Needed   bool
+	Preview  bool
 	Complete int
 	Total    int
 	Steps    []hardware.SetupStep
@@ -20,11 +21,18 @@ type SetupGuide struct {
 }
 
 // BuildSetupGuide assembles host and radio setup steps for the dashboard.
-func BuildSetupGuide(mockMode bool, audit hardware.HostAudit, status runtime.Status) SetupGuide {
-	if mockMode {
+func BuildSetupGuide(mockRadio, mockSetupChecklist bool, audit hardware.HostAudit, status runtime.Status) SetupGuide {
+	if mockSetupChecklist {
+		return mockSetupGuidePreview()
+	}
+	if mockRadio {
 		return SetupGuide{}
 	}
 
+	return buildSetupGuideFromState(audit, status, false)
+}
+
+func buildSetupGuideFromState(audit hardware.HostAudit, status runtime.Status, preview bool) SetupGuide {
 	steps := hardware.HostNetworkingSteps(audit)
 	steps = append(steps, radioSetupSteps(status)...)
 
@@ -41,11 +49,24 @@ func BuildSetupGuide(mockMode bool, audit hardware.HostAudit, status runtime.Sta
 
 	return SetupGuide{
 		Needed:   len(steps) > 0,
+		Preview:  preview,
 		Complete: complete,
 		Total:    len(steps),
 		Steps:    steps,
 		Persist:  hardware.PersistSysctlSnippet(audit),
 	}
+}
+
+const mockPreviewRadioPath = "/dev/ttyUSB0"
+
+func mockSetupGuidePreview() SetupGuide {
+	audit := hardware.HostAudit{TunDeviceExists: true}
+	status := runtime.Status{
+		ProbeError:     "preview: spinel probe timed out or returned invalid response",
+		RadioPath:      mockPreviewRadioPath,
+		DetectedDevice: "SONOFF Dongle Plus MG24 (VID: 10c4, PID: ea60)",
+	}
+	return buildSetupGuideFromState(audit, status, true)
 }
 
 func formatStepTitle(number int, title string) string {
@@ -110,7 +131,6 @@ func flashDescription(deviceLower, flasherDevice, baud string) string {
 }
 
 func statusDeviceName(deviceLower string) string {
-	// deviceLower is already lowercased detectedDevice string from status.
 	if idx := strings.Index(deviceLower, "(vid:"); idx > 0 {
 		return strings.TrimSpace(deviceLower[:idx])
 	}

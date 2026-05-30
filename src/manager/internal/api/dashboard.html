@@ -178,7 +178,27 @@
                 font-weight: 600;
                 color: var(--text);
             }
+            .setup-preview-banner {
+                margin-bottom: 1rem;
+                padding: 0.75rem 1rem;
+                border-radius: var(--r-sm);
+                border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+                background: var(--warning-soft);
+                color: var(--text);
+                font-size: 0.88rem;
+                line-height: 1.5;
+            }
+            .setup-preview-banner code {
+                font-family: var(--font-mono);
+                font-size: 0.82rem;
+            }
         </style>
+        {{if .SetupGuide.Preview}}
+        <div class="setup-preview-banner">
+            <strong>Preview mode.</strong> Sample checklist for UI testing — not based on live host state.
+            Disable with <code>OTBR_MOCK_SETUP_CHECKLIST=false</code> (or remove the env var) and recreate the container.
+        </div>
+        {{end}}
         <div class="setup-checklist-header">
             <div>
                 <h2 class="setup-checklist-title">Production Setup Checklist</h2>

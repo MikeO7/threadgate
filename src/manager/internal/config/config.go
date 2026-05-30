@@ -25,6 +25,7 @@ type Config struct {
 	BackboneIF          string // Backbone interface for border routing (e.g. eth0, wlan0)
 	HassURL             string // Home Assistant URL e.g. "http://192.168.1.100:8123"
 	HassToken           string // Home Assistant Long-Lived Access Token
+	MockSetupChecklist  bool   // Force the dashboard Production Setup Checklist preview
 }
 
 const defaultBackboneInterface = "eth0"
@@ -45,6 +46,7 @@ func Load() *Config {
 		ExplicitBaudrate:    explicitBaudrate,
 		HassURL:             strings.TrimSuffix(os.Getenv("OTBR_HASS_URL"), "/"),
 		HassToken:           os.Getenv("OTBR_HASS_TOKEN"),
+		MockSetupChecklist:  getEnvBool("OTBR_MOCK_SETUP_CHECKLIST", false),
 	}
 
 	baud, err := strconv.Atoi(os.Getenv("OTBR_BAUDRATE"))

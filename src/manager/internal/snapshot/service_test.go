@@ -57,7 +57,7 @@ func TestServiceBuildDashboardPendingOverlay(t *testing.T) {
 		Hass:    &fakeHass{enabled: false, status: hass.StatusDisabled},
 		Pairing: &fakePairing{pending: true},
 	}
-	model := svc.BuildDashboard(context.Background(), 8081, false, runtime.Status{}, false, "")
+	model := svc.BuildDashboard(context.Background(), 8081, false, false, runtime.Status{}, false, "")
 	if model.HassStatus != hass.StatusPending {
 		t.Fatalf("expected pending overlay, got %q", model.HassStatus)
 	}

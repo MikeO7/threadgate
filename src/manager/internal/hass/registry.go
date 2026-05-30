@@ -6,13 +6,13 @@ import (
 )
 
 type registryDevice struct {
-	ID           string     `json:"id"`
-	Name         *string    `json:"name_by_user"`
-	NameDefault  *string    `json:"name"`
-	Connections  [][]any    `json:"connections"`
-	Manufacturer *string    `json:"manufacturer"`
-	Model        *string    `json:"model"`
-	SwVersion    *string    `json:"sw_version"`
+	ID           string  `json:"id"`
+	Name         *string `json:"name_by_user"`
+	NameDefault  *string `json:"name"`
+	Connections  [][]any `json:"connections"`
+	Manufacturer *string `json:"manufacturer"`
+	Model        *string `json:"model"`
+	SwVersion    *string `json:"sw_version"`
 }
 
 // ListDevices returns MAC-normalized device details via the device registry WebSocket API.

@@ -39,3 +39,4 @@ services:
       # Optional: pre-seed HA URL/token (pairing via dashboard also writes /data/hass_config.json).
       - OTBR_HASS_URL=
       - OTBR_HASS_TOKEN=
+      # - OTBR_MOCK_SETUP_CHECKLIST=true  # force Production Setup Checklist preview on dashboard

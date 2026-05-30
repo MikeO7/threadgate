@@ -18,7 +18,7 @@ const (
 	MockDirectCount    = 8
 	MockEndDeviceCount = 12
 	MockMeshNodeCount  = MockRouterCount + MockEndDeviceCount
-	MockNetworkName = "ThreadGate-Mock"
+	MockNetworkName    = "ThreadGate-Mock"
 )
 
 // Mock datasets use a non-default network key so Home Assistant does not raise insecure_thread_network.
