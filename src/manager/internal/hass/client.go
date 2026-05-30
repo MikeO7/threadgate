@@ -8,6 +8,9 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -104,7 +107,7 @@ func (c *Client) FetchDeviceNames(ctx context.Context) (map[string]DeviceDetails
 	url, token := c.url, c.token
 	c.mu.Unlock()
 
-	names, err := ResolveDevices(ctx, c, url, token)
+	names, err := resolveDevices(ctx, c, url, token)
 	if err != nil {
 		c.mu.Lock()
 		c.lastError = err
@@ -263,4 +266,277 @@ func CountDevices(ctx context.Context, haURL, token string) (int, error) {
 		return 0, err
 	}
 	return len(devices), nil
+}
+
+// Package hass is the deep Home Assistant client module: WebSocket registry, HTTP fallback, and credential storage.
+
+// DeviceDetails is friendly metadata for a Thread/Zigbee device keyed by normalized MAC.
+type DeviceDetails struct {
+	Name         string
+	Manufacturer string
+	Model        string
+	SwVersion    string
+	Battery      string
+	Availability string
+	DeviceID     string
+}
+
+// SavedConfig is persisted after pairing approval.
+type SavedConfig struct {
+	HassURL   string `json:"hass_url"`
+	HassToken string `json:"hass_token"`
+}
+
+const (
+	StatusConnected = "Connected"
+	StatusFailed    = "Failed"
+	StatusDisabled  = "Disabled"
+	StatusPending   = "Pending"
+	StatusMock      = "Mock"
+)
+
+// NormalizeMac strips separators and lowercases a MAC or extended address for map lookup.
+func NormalizeMac(mac string) string {
+	mac = strings.ToLower(mac)
+	mac = strings.ReplaceAll(mac, ":", "")
+	mac = strings.ReplaceAll(mac, "-", "")
+	return strings.TrimSpace(mac)
+}
+
+// LoadConfig reads saved Home Assistant credentials from stateDir.
+func LoadConfig(stateDir string) (url, token string) {
+	path := configPath(stateDir)
+	//nolint:gosec // G304: path is derived from stateDir via configPath, not user-supplied file paths
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", ""
+	}
+	var saved SavedConfig
+	if err := json.Unmarshal(data, &saved); err != nil {
+		return "", ""
+	}
+	return saved.HassURL, saved.HassToken
+}
+
+// SaveConfig writes Home Assistant credentials to persistent storage.
+func SaveConfig(stateDir, url, token string) error {
+	path := configPath(stateDir)
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return err
+	}
+	saved := SavedConfig{HassURL: url, HassToken: token}
+	data, err := json.MarshalIndent(saved, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
+}
+
+func configPath(stateDir string) string {
+	if stateDir != "" {
+		return filepath.Join(stateDir, "hass_config.json")
+	}
+	return "/data/hass_config.json"
+}
+
+// MockDeviceNames returns simulated friendly names for mock-mode dashboard rendering.
+func MockDeviceNames() map[string]DeviceDetails {
+	m := map[string]DeviceDetails{
+		"0000000000000001": {Name: "Living Room Multi-Sensor", Manufacturer: "Eve", Model: "Eve Motion", SwVersion: "1.2.3", Battery: "82", Availability: "on", DeviceID: "dev_eve_motion"},
+		"0000000000000002": {Name: "Kitchen Smart Plug", Manufacturer: "Nanoleaf", Model: "Essentials Smart Plug", SwVersion: "3.1.2", Availability: "on", DeviceID: "dev_nano_plug"},
+		"0000000000000003": {Name: "Bedroom Radiator Valve", Manufacturer: "Danfoss", Model: "Ally Radiator Thermostat", SwVersion: "2.1.0", Battery: "12", Availability: "on", DeviceID: "dev_dan_valve"},
+		"0000000000000004": {Name: "Hallway Motion Detector", Manufacturer: "Philips", Model: "Hue Motion Sensor", SwVersion: "1.5.0", Battery: "95", Availability: "on", DeviceID: "dev_hue_motion"},
+		"0000000000000005": {Name: "Office Desk Lamp", Manufacturer: "Ikea", Model: "Tradfri Bulb", SwVersion: "2.0.0", Availability: "off", DeviceID: "dev_ikea_lamp"},
+		"0000000000000006": {Name: "Front Door Lock", Manufacturer: "Yale", Model: "Assure Lock 2", SwVersion: "4.2.1", Battery: "45", Availability: "unavailable", DeviceID: "dev_yale_lock"},
+		"1122334455667788": {Name: "ThreadGate Border Router", Manufacturer: "ThreadGate", Model: "Border Router Gateway", SwVersion: "1.0.0", Availability: "on", DeviceID: "dev_threadgate"},
+	}
+	deviceTypes := []string{"Smart Bulb", "Smart Plug", "Thermostat", "Motion Sensor", "Door Sensor", "Window Shade", "Wall Switch", "Light Dimmer"}
+	locations := []string{"Kitchen", "Living Room", "Master Bedroom", "Guest Bedroom", "Office", "Hallway", "Basement", "Garage", "Patio", "Attic"}
+	for i := 1; i <= 32; i++ {
+		mac := fmt.Sprintf("%016x", i)
+		if _, ok := m[mac]; !ok {
+			loc := locations[(i-1)%len(locations)]
+			dtype := deviceTypes[(i-1)%len(deviceTypes)]
+			m[mac] = DeviceDetails{
+				Name:         fmt.Sprintf("%s %s", loc, dtype),
+				Manufacturer: "Nanoleaf",
+				Model:        "Essentials " + dtype,
+				SwVersion:    "1.0.1",
+				Availability: "on",
+				DeviceID:     fmt.Sprintf("dev_mock_router_%d", i),
+			}
+		}
+	}
+	for i := range 12 {
+		mac := fmt.Sprintf("e00000000000%04x", i)
+		if _, ok := m[mac]; !ok {
+			loc := locations[i%len(locations)]
+			m[mac] = DeviceDetails{
+				Name:         fmt.Sprintf("%s Sleepy Sensor %d", loc, i+1),
+				Manufacturer: "Eve",
+				Model:        "Eve Door & Window",
+				SwVersion:    "2.0.2",
+				Battery:      fmt.Sprintf("%d", (i*8)%100+10),
+				Availability: "on",
+				DeviceID:     fmt.Sprintf("dev_mock_sleepy_%d", i),
+			}
+		}
+	}
+	return m
+}
+
+type registryDevice struct {
+	ID           string  `json:"id"`
+	Name         *string `json:"name_by_user"`
+	NameDefault  *string `json:"name"`
+	Connections  [][]any `json:"connections"`
+	Manufacturer *string `json:"manufacturer"`
+	Model        *string `json:"model"`
+	SwVersion    *string `json:"sw_version"`
+}
+
+// listDevices returns MAC-normalized device details via the device registry WebSocket API.
+func listDevices(ctx context.Context, haURL, accessToken string) (map[string]DeviceDetails, error) {
+	c, err := Dial(ctx, haURL, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = c.Close() }()
+
+	raw, err := c.CallRaw(ctx, "config/device_registry/list", map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	var devices []registryDevice
+	if err := json.Unmarshal(raw, &devices); err != nil {
+		return nil, err
+	}
+	return mapRegistryDevices(devices), nil
+}
+
+func mapRegistryDevices(raw []registryDevice) map[string]DeviceDetails {
+	names := make(map[string]DeviceDetails)
+	for _, dev := range raw {
+		name := registryName(dev)
+		if name == "" {
+			continue
+		}
+		manufacturer, model, sw := "", "", ""
+		if dev.Manufacturer != nil {
+			manufacturer = *dev.Manufacturer
+		}
+		if dev.Model != nil {
+			model = *dev.Model
+		}
+		if dev.SwVersion != nil {
+			sw = *dev.SwVersion
+		}
+		for mac, details := range deviceFromConnections(name, manufacturer, model, sw, dev.ID, nil, nil, dev.Connections) {
+			names[mac] = details
+		}
+	}
+	return names
+}
+
+func registryName(dev registryDevice) string {
+	if dev.Name != nil && *dev.Name != "" {
+		return *dev.Name
+	}
+	if dev.NameDefault != nil {
+		return *dev.NameDefault
+	}
+	return ""
+}
+
+// mapConnection extracts a normalized MAC from a Home Assistant device connection tuple.
+func mapConnection(connType, connVal string) (string, bool) {
+	if connType != "zigbee" && connType != "mac" && connType != "thread" {
+		return "", false
+	}
+	mac := NormalizeMac(connVal)
+	if mac == "" {
+		return "", false
+	}
+	return mac, true
+}
+
+func deviceFromConnections(name, manufacturer, model, sw, deviceID string, battery, availability any, connections [][]any) map[string]DeviceDetails {
+	names := make(map[string]DeviceDetails)
+	for _, conn := range connections {
+		if len(conn) < 2 {
+			continue
+		}
+		connType, ok1 := conn[0].(string)
+		if !ok1 {
+			connType = fmt.Sprint(conn[0])
+		}
+		connVal := fmt.Sprint(conn[1])
+		mac, ok := mapConnection(connType, connVal)
+		if !ok {
+			continue
+		}
+		names[mac] = DeviceDetails{
+			Name:         name,
+			Manufacturer: manufacturer,
+			Model:        model,
+			SwVersion:    sw,
+			Battery:      toString(battery),
+			Availability: toString(availability),
+			DeviceID:     deviceID,
+		}
+	}
+	return names
+}
+
+// mergeDeviceMaps overlays enrichment fields from fallback onto primary registry results.
+func mergeDeviceMaps(primary, fallback map[string]DeviceDetails) map[string]DeviceDetails {
+	if len(fallback) == 0 {
+		return primary
+	}
+	if primary == nil {
+		primary = make(map[string]DeviceDetails)
+	}
+	for mac, fb := range fallback {
+		existing, ok := primary[mac]
+		if !ok {
+			primary[mac] = fb
+			continue
+		}
+		if existing.Battery == "" {
+			existing.Battery = fb.Battery
+		}
+		if existing.Availability == "" {
+			existing.Availability = fb.Availability
+		}
+		if existing.DeviceID == "" {
+			existing.DeviceID = fb.DeviceID
+		}
+		primary[mac] = existing
+	}
+	return primary
+}
+
+// resolveDevices fetches device details via registry WebSocket, enriching from template fallback when needed.
+func resolveDevices(ctx context.Context, c *Client, url, token string) (map[string]DeviceDetails, error) {
+	names, err := listDevices(ctx, url, token)
+	if err == nil && deviceMapNeedsEnrichment(names) {
+		fallback, fbErr := c.fetchViaTemplate(ctx, url, token)
+		if fbErr == nil {
+			names = mergeDeviceMaps(names, fallback)
+		}
+		return names, nil
+	}
+	if err == nil {
+		return names, nil
+	}
+	return c.fetchViaTemplate(ctx, url, token)
+}
+
+func deviceMapNeedsEnrichment(names map[string]DeviceDetails) bool {
+	for _, dev := range names {
+		if dev.Battery != "" || dev.Availability != "" {
+			return false
+		}
+	}
+	return len(names) > 0
 }
